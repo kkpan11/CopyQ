@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef WINPLATFORMWINDOW_H
-#define WINPLATFORMWINDOW_H
+#pragma once
+
 
 #include "platform/platformwindow.h"
 
@@ -21,13 +21,13 @@ public:
 
     void raise() override;
 
-    void pasteClipboard() override;
-    void copy() override;
+    bool pasteFromClipboard() override;
+    bool copyToClipboard() override;
+
+    bool matchesWidget(const QWidget *widget) const override;
 
 private:
-    void sendKeyPress(WORD modifier, WORD key, const AppConfig &config);
+    bool sendKeyPress(WORD modifier, WORD key, const AppConfig &config);
 
     HWND m_window;
 };
-
-#endif // WINPLATFORMWINDOW_H

@@ -12,6 +12,7 @@
 #include "common/config.h"
 #include "common/contenttype.h"
 #include "common/display.h"
+#include "common/encryption.h"
 #include "common/globalshortcutcommands.h"
 #include "common/log.h"
 #include "common/mimetypes.h"
@@ -19,6 +20,7 @@
 #include "common/tabs.h"
 #include "common/textdata.h"
 #include "common/timer.h"
+
 #include "gui/aboutdialog.h"
 #include "gui/actiondialog.h"
 #include "gui/actionhandler.h"
@@ -29,15 +31,20 @@
 #include "gui/commandaction.h"
 #include "gui/commanddialog.h"
 #include "gui/configurationmanager.h"
+#include "gui/encryptionpassword.h"
+#include "gui/geometry.h"
+#include "gui/hiddenmenubar.h"
 #include "gui/importexportdialog.h"
 #include "gui/iconfactory.h"
 #include "gui/iconfactory.h"
 #include "gui/iconselectdialog.h"
 #include "gui/icons.h"
 #include "gui/logdialog.h"
+#include "gui/navigation.h"
 #include "gui/notification.h"
-#include "gui/notificationbutton.h"
 #include "gui/notificationdaemon.h"
+#include "gui/passwordprompt.h"
+#include "gui/selectiondata.h"
 #include "gui/tabdialog.h"
 #include "gui/tabicons.h"
 #include "gui/tabwidget.h"
@@ -45,15 +52,13 @@
 #include "gui/traymenu.h"
 #include "gui/windowgeometryguard.h"
 #include "item/itemfactory.h"
+#include "item/itemstore.h"
 #include "item/serialize.h"
 #include "platform/platformclipboard.h"
 #include "platform/platformnativeinterface.h"
 #include "platform/platformwindow.h"
 #include "scriptable/scriptoverrides.h"
-
-#ifdef Q_OS_MAC
-#  include "platform/mac/foregroundbackgroundfilter.h"
-#endif
+#include <qnamespace.h>
 
 #ifdef WITH_NATIVE_NOTIFICATIONS
 #include <KStatusNotifierItem>
@@ -65,27 +70,38 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFlags>
+#include <QInputDialog>
+#include <QLoggingCategory>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QModelIndex>
+#include <QMouseEvent>
 #include <QPushButton>
+#include <QSaveFile>
 #include <QShortcut>
+#include <QSizeGrip>
 #include <QSystemTrayIcon>
-#include <QTemporaryFile>
 #include <QTimer>
 #include <QToolBar>
 #include <QUrl>
 #include <QVector>
+#include <QWindow>
 
 #include <algorithm>
 #include <memory>
 
 namespace {
 
+Q_DECLARE_LOGGING_CATEGORY(logCategory)
+Q_LOGGING_CATEGORY(logCategory, "copyq.wnd")
+
 const int contextMenuUpdateIntervalMsec = 100;
 const int itemPreviewUpdateIntervalMsec = 100;
+
+constexpr auto dataStreamImportVersionDefault = QDataStream::Qt_4_7;
+constexpr auto dataStreamImportVersionForV5 = QDataStream::Qt_5_15;
 
 const QLatin1String menuItemKeyColor("color");
 const QLatin1String menuItemKeyIcon("icon");
@@ -134,7 +150,7 @@ bool canPaste()
     return !QApplication::queryKeyboardModifiers().testFlag(Qt::ControlModifier);
 }
 
-bool matchData(const QRegularExpression &re, const QVariantMap &data, const QString &format)
+bool matchData(const QRegularExpression &re, const QVariantMap &data, const QString &format = QString())
 {
     if ( re.pattern().isEmpty() )
         return true;
@@ -146,7 +162,7 @@ bool matchData(const QRegularExpression &re, const QVariantMap &data, const QStr
 bool canExecuteCommand(const Command &command, const QVariantMap &data, const QString &sourceTabName)
 {
     // Verify that an action is provided.
-    if ( command.cmd.isEmpty() && !command.remove
+    if ( command.cmd.isEmpty()
          && (command.tab.isEmpty() || command.tab == sourceTabName) )
     {
         return false;
@@ -164,7 +180,7 @@ bool canExecuteCommand(const Command &command, const QVariantMap &data, const QS
     }
 
     // Verify that and text matches given regexp.
-    if ( !matchData(command.re, data, mimeText) )
+    if ( !matchData(command.re, data) )
         return false;
 
     // Verify that window title matches given regexp.
@@ -181,54 +197,6 @@ void disableActionWhenTabGroupSelected(WidgetOrAction *action, MainWindow *windo
                       action, &WidgetOrAction::setDisabled );
 }
 
-void addSelectionData(
-        QVariantMap *result,
-        const QList<QPersistentModelIndex> &selectedIndexes)
-{
-    result->insert(mimeSelectedItems, QVariant::fromValue(selectedIndexes));
-}
-
-void addSelectionData(
-        QVariantMap *result,
-        const QModelIndexList &selectedIndexes)
-{
-    QList<QPersistentModelIndex> selected;
-    selected.reserve(selectedIndexes.size());
-    for (const auto &index : selectedIndexes)
-        selected.append(index);
-    std::sort(selected.begin(), selected.end());
-    addSelectionData(result, selected);
-}
-
-/// Adds information about current tab and selection if command is triggered by user.
-QVariantMap addSelectionData(
-        const ClipboardBrowser &c,
-        const QModelIndex &currentIndex,
-        const QModelIndexList &selectedIndexes)
-{
-    auto result = c.copyIndexes(selectedIndexes);
-
-    result.insert(mimeCurrentTab, c.tabName());
-
-    if ( currentIndex.isValid() ) {
-        const QPersistentModelIndex current = currentIndex;
-        result.insert(mimeCurrentItem, QVariant::fromValue(current));
-    }
-
-    if ( !selectedIndexes.isEmpty() ) {
-        addSelectionData(&result, selectedIndexes);
-    }
-
-    return result;
-}
-
-QVariantMap addSelectionData(const ClipboardBrowser &c)
-{
-    const QModelIndexList selectedIndexes = c.selectionModel()->selectedIndexes();
-    const auto current = c.selectionModel()->currentIndex();
-    return addSelectionData(c, current, selectedIndexes);
-}
-
 QMenu *findSubMenu(const QString &name, const QMenu &menu)
 {
     for (auto action : menu.actions()) {
@@ -240,15 +208,16 @@ QMenu *findSubMenu(const QString &name, const QMenu &menu)
     return nullptr;
 }
 
-QMenu *createSubMenus(QString *name, QMenu *menu)
+std::pair<QMenu*, QMenu*> createSubMenus(QString *name, QMenu *menu)
 {
     QStringList path = name->split('|');
     if (path.size() == 1)
-        return menu;
+        return {nullptr, menu};
 
     *name = path.takeLast();
 
     QMenu *parentMenu = menu;
+    QMenu *rootMenu = nullptr;
 
     for (const auto &subMenuName : path) {
         QMenu *subMenu = findSubMenu(subMenuName, *parentMenu);
@@ -258,53 +227,60 @@ QMenu *createSubMenus(QString *name, QMenu *menu)
             parentMenu->addMenu(subMenu);
         }
 
+        if (parentMenu == menu)
+            rootMenu = subMenu;
         parentMenu = subMenu;
     }
 
-    return parentMenu;
+    return {rootMenu, parentMenu};
 }
 
-// WORKAROUND: setWindowFlags() hides the window.
-// See: https://doc.qt.io/qt-5/qwidget.html#windowFlags-prop
-void setWindowFlag(QPointer<QWidget> window, Qt::WindowType flag, bool enable)
+class WindowFlags
 {
-    if (!window)
-        return;
+public:
+    explicit WindowFlags(QWidget *window)
+        : m_window(window)
+        , m_flags(window->windowFlags())
+    {
+    }
 
-    const Qt::WindowFlags flags = window->windowFlags();
-    const bool wasEnabled = flags.testFlag(flag);
-    if (wasEnabled == enable)
-        return;
+    void apply()
+    {
+        if (!m_window || m_window->windowFlags() == m_flags)
+            return;
 
-    const bool wasVisible = window->isVisible();
-    const bool wasActive = window->isActiveWindow();
+        // WORKAROUND: setWindowFlags() hides the window.
+        // See: https://doc.qt.io/qt-6/qwidget.html#windowFlags-prop
+        const bool wasVisible = m_window->isVisible();
+        const bool wasActive = m_window->isActiveWindow();
 
-    window->setWindowFlags(flags ^ flag);
+        m_window->setWindowFlags(m_flags);
 
-    if (wasVisible) {
-        if (wasActive) {
-            window->show();
-            window->activateWindow();
-            QApplication::setActiveWindow(window);
-            raiseWindow(window);
-        } else {
-            const bool showWithoutActivating = window->testAttribute(Qt::WA_ShowWithoutActivating);
-            window->setAttribute(Qt::WA_ShowWithoutActivating);
-            window->show();
-            window->setAttribute(Qt::WA_ShowWithoutActivating, showWithoutActivating);
+        if (wasVisible) {
+            if (wasActive) {
+                m_window->show();
+                m_window->activateWindow();
+                QApplication::setActiveWindow(m_window);
+                raiseWindow(m_window);
+            } else {
+                const bool showWithoutActivating = m_window->testAttribute(Qt::WA_ShowWithoutActivating);
+                m_window->setAttribute(Qt::WA_ShowWithoutActivating);
+                m_window->show();
+                m_window->setAttribute(Qt::WA_ShowWithoutActivating, showWithoutActivating);
+            }
         }
     }
-}
 
-void setAlwaysOnTop(QWidget *window, bool alwaysOnTop)
-{
-    setWindowFlag(window, Qt::WindowStaysOnTopHint, alwaysOnTop);
-}
+    void set(Qt::WindowType flag, bool enable)
+    {
+        if (m_flags.testFlag(flag) != enable)
+            m_flags.setFlag(flag, enable);
+    }
 
-void setHideInTaskBar(QWidget *window, bool hideInTaskBar)
-{
-    setWindowFlag(window, Qt::Tool, hideInTaskBar);
-}
+private:
+    QPointer<QWidget> m_window;
+    Qt::WindowFlags m_flags;
+};
 
 template<typename Dialog, typename ...Ts>
 Dialog *openDialog(Ts... arguments)
@@ -320,10 +296,8 @@ Dialog *openDialog(Ts... arguments)
 
 bool isItemActivationShortcut(const QKeySequence &shortcut)
 {
-    return (shortcut.matches(Qt::Key_Return) || shortcut.matches(Qt::Key_Enter))
-            && shortcut[1] == 0
-            && shortcut[2] == 0
-            && shortcut[3] == 0;
+    return shortcut.count() == 1
+            && (shortcut.matches(Qt::Key_Return) || shortcut.matches(Qt::Key_Enter));
 }
 
 QString importExportFileDialogFilter()
@@ -343,6 +317,28 @@ QVariant serializableValue(const QSettings &settings, const QString &key)
         return value;
 
     return QString();
+}
+
+QByteArray serializeToByteArray(const QVariant &value)
+{
+    QByteArray bytes;
+    {
+        QDataStream in(&bytes, QIODevice::WriteOnly);
+        in.setVersion(dataStreamImportVersionForV5);
+        in << value;
+    }
+    return bytes;
+}
+
+QVariant deserializeFromByteArray(const QByteArray &bytes)
+{
+    QVariant value;
+    {
+        QDataStream out(bytes);
+        out.setVersion(dataStreamImportVersionForV5);
+        out >> value;
+    }
+    return value;
 }
 
 bool isAnyApplicationWindowActive()
@@ -382,7 +378,7 @@ void deleteSubMenus(QObject *parent)
 {
     for (auto subMenu : parent->findChildren<QMenu*>()) {
         if (subMenu->parent() == parent)
-            delete subMenu;
+            subMenu->deleteLater();
     }
 }
 
@@ -465,6 +461,194 @@ bool menuItemMatches(const QModelIndex &index, const QString &searchText)
             return true;
     }
     return false;
+}
+
+QList<QKeySequence> getUniqueShortcuts(const QStringList &shortcuts, QList<QKeySequence> *usedShortcuts)
+{
+    QList<QKeySequence> uniqueShortcuts;
+
+    for (const auto &shortcutText : shortcuts) {
+        const QKeySequence shortcut(shortcutText, QKeySequence::PortableText);
+        if ( !shortcut.isEmpty() && !usedShortcuts->contains(shortcut) ) {
+            usedShortcuts->append(shortcut);
+            uniqueShortcuts.append(shortcut);
+        }
+    }
+
+    return uniqueShortcuts;
+}
+
+bool hadleKeyOverride(QObject *object, QEvent *ev, KeyMods keyMods)
+{
+    if (keyMods.key <= 0)
+        return false;
+
+    if (ev->type() == QEvent::ShortcutOverride) {
+        ev->accept();
+        return true;
+    }
+
+    QKeyEvent event2(QEvent::KeyPress, keyMods.key, keyMods.mods);
+    if ( QCoreApplication::sendEvent(object, &event2) ) {
+        ev->accept();
+        return true;
+    }
+
+    return false;
+}
+
+ImportSelection getImportSelection(
+    const QVariantMap &data, ImportOptions options, QWidget *parent)
+{
+    ImportSelection sel{
+        data.value("tabs").toStringList(),
+        data.value("settings").toMap(),
+        data.value("commands").toList()
+    };
+    if (options == ImportOptions::All)
+        return sel;
+
+    ImportExportDialog importDialog(parent);
+    importDialog.setWindowTitle( MainWindow::tr("Options for Import") );
+    importDialog.setTabs(sel.tabs);
+    importDialog.setHasConfiguration(!sel.configuration.isEmpty());
+    importDialog.setHasCommands(!sel.commands.isEmpty());
+    importDialog.setConfigurationEnabled(!sel.configuration.isEmpty());
+    importDialog.setCommandsEnabled(!sel.commands.isEmpty());
+    if ( importDialog.exec() != QDialog::Accepted )
+        return {};
+
+    return ImportSelection{
+        importDialog.selectedTabs(),
+        importDialog.isConfigurationEnabled() ? sel.configuration : QVariantMap(),
+        importDialog.isCommandsEnabled() ? sel.commands : QVariantList()
+    };
+}
+
+void showEncryptionUnavailableMessage(QWidget *parent)
+{
+    QMessageBox::warning(
+        parent,
+        MainWindow::tr("Encryption Unavailable"),
+        MainWindow::tr("Encryption is not available (see logs for details).\n\nIt will be possible to encrypt and decrypt tab data.")
+    );
+}
+
+QVariantMap exportSettings(const QStringList &tabs, bool exportConfiguration, bool exportCommands)
+{
+    QVariantMap settingsMap;
+    if (exportConfiguration) {
+        log("Exporting settings");
+        const QSettings settings;
+        const QLatin1String commandsPrefix("Commands/");
+        for (const auto &key : settings.allKeys()) {
+            if ( !key.startsWith(commandsPrefix) ) {
+                settingsMap[key] = serializableValue(settings, key);
+            }
+        }
+    }
+
+    QVariantList commandsList;
+    if (exportCommands) {
+        log("Exporting commands");
+        Settings settings(configurationFilePath("-commands.ini"));
+        const int commandCount = settings.beginReadArray(QLatin1String("Commands"));
+        commandsList.reserve(commandCount);
+        for (int i = 0; i < commandCount; ++i) {
+            settings.setArrayIndex(i);
+
+            QVariantMap commandMap;
+            for ( const auto &key : settings.allKeys() )
+                commandMap[key] = serializableValue(settings, key);
+
+            commandsList.append(commandMap);
+        }
+        settings.endArray();
+
+        settings.beginGroup(QLatin1String("Command"));
+        QVariantMap commandMap;
+        for ( const auto &key : settings.allKeys() )
+            commandMap[key] = serializableValue(settings, key);
+        if (!commandMap.isEmpty())
+            commandsList.append(commandMap);
+    }
+
+    QVariantMap data;
+    if ( !tabs.isEmpty() )
+        data[QStringLiteral("tabs")] = tabs;
+    if ( !settingsMap.isEmpty() )
+        data[QStringLiteral("settings")] = settingsMap;
+    if ( !commandsList.isEmpty() )
+        data[QStringLiteral("commands")] = commandsList;
+
+    return data;
+}
+
+Encryption::EncryptionKey promptForImportPassword(QWidget *parent)
+{
+    if (!Encryption::initialize()) {
+        showEncryptionUnavailableMessage(parent);
+        return {};
+    }
+
+    const auto password = promptForNewPassword(
+        MainWindow::tr("Import Password"),
+        MainWindow::tr("Enter password for import:"),
+        PasswordPromptType::AskOnce,
+        parent);
+
+    if (password.isEmpty()) {
+        log("Import cancelled", LogWarning);
+        return {};
+    }
+
+    return Encryption::EncryptionKey(password);
+}
+
+#ifdef WITH_QCA_ENCRYPTION
+Encryption::EncryptionKey promptForExportPassword(QWidget *parent, bool *ok)
+{
+    if (!Encryption::initialize()) {
+        showEncryptionUnavailableMessage(parent);
+        *ok = false;
+        return {};
+    }
+
+    *ok = true;
+    const auto password = promptForNewPassword(
+        MainWindow::tr("Export Password"),
+        MainWindow::tr("Enter password for export (empty for no encryption):"),
+        PasswordPromptType::AllowEmpty,
+        parent);
+
+    if ( password.isEmpty() )
+        return {};
+
+    const Encryption::EncryptionKey key(password);
+    if (key.isValid())
+        return key;
+
+    log("Failed to derive encryption key for export", LogError);
+    *ok = false;
+    return {};
+}
+#endif
+
+bool checkFileAndStreamErrors(const QFileDevice &file, const QDataStream &stream, const char *label)
+{
+    if (file.error() != QFileDevice::NoError) {
+        qCCritical(logCategory) << label << "-" << "file:"
+            << file.fileName() << "message:" << file.errorString();
+        return false;
+    }
+
+    if (stream.status() != QDataStream::Ok) {
+        qCCritical(logCategory) << label << "-"  << "file:"
+            << file.fileName() << "reason:" << stream.status();
+        return false;
+    }
+
+    return true;
 }
 
 } // namespace
@@ -577,6 +761,7 @@ MainWindow::MainWindow(const ClipboardBrowserSharedPtr &sharedData, QWidget *par
     , m_tray(nullptr)
     , m_toolBar(new ToolBar(this))
     , m_sharedData(sharedData)
+    , m_wasEncrypted(AppConfig().option<Config::encrypt_tabs>())
     , m_menu( new TrayMenu(this) )
     , m_menuMaxItemCount(-1)
     , m_commandDialog(nullptr)
@@ -584,13 +769,8 @@ MainWindow::MainWindow(const ClipboardBrowserSharedPtr &sharedData, QWidget *par
 {
     ui->setupUi(this);
 
+    m_sharedData->passwordPrompt = new PasswordPrompt(this);
     m_sharedData->menuItems = menuItems();
-
-#if defined(Q_OS_MAC) && QT_VERSION < QT_VERSION_CHECK(6,0,0)
-    // Open above fullscreen windows on macOS and Qt 5.
-    setWindowModality(Qt::WindowModal);
-    setWindowFlag(Qt::Sheet);
-#endif
 
     setWindowRole(QStringLiteral("main"));
 
@@ -602,6 +782,7 @@ MainWindow::MainWindow(const ClipboardBrowserSharedPtr &sharedData, QWidget *par
 
     ui->dockWidgetItemPreview->setFocusProxy(ui->scrollAreaItemPreview);
     ui->dockWidgetItemPreview->hide();
+    ui->scrollAreaItemPreview->viewport()->setObjectName("item_preview");
 
     WindowGeometryGuard::create(this);
     restoreState( mainWindowState(objectName()) );
@@ -609,9 +790,12 @@ MainWindow::MainWindow(const ClipboardBrowserSharedPtr &sharedData, QWidget *par
     m_showItemPreview = !ui->dockWidgetItemPreview->isHidden();
 
     // Disable the show-preview option when the preview dock is closed.
-    connect( ui->dockWidgetItemPreview, &QDockWidget::visibilityChanged,
-             this, [this]() {
-                if ( ui->dockWidgetItemPreview->isHidden() )
+    // Capture the dock pointer directly: during ~QWidget::hideChildren() the
+    // dock is still alive but the Ui struct (holding the pointer) is already freed.
+    auto *dockPreview = ui->dockWidgetItemPreview;
+    connect( dockPreview, &QDockWidget::visibilityChanged,
+             this, [this, dockPreview]() {
+                if ( dockPreview->isHidden() )
                     setItemPreviewVisible(false);
              } );
 
@@ -668,7 +852,7 @@ MainWindow::MainWindow(const ClipboardBrowserSharedPtr &sharedData, QWidget *par
     initSingleShotTimer( &m_timerUpdateFocusWindows, 100, this, &MainWindow::updateFocusWindows );
     initSingleShotTimer( &m_timerUpdateContextMenu, 0, this, &MainWindow::updateContextMenuTimeout );
     initSingleShotTimer( &m_timerUpdatePreview, 0, this, &MainWindow::updateItemPreviewTimeout );
-    initSingleShotTimer( &m_timerSaveTabPositions, 1000, this, &MainWindow::onSaveTabPositionsTimer );
+    initSingleShotTimer( &m_timerSaveTabPositions, 0, this, &MainWindow::onSaveTabPositionsTimer );
     initSingleShotTimer( &m_timerRaiseLastWindowAfterMenuClosed, 50, this, &MainWindow::raiseLastWindowAfterMenuClosed);
     enableHideWindowOnUnfocus();
 
@@ -676,7 +860,7 @@ MainWindow::MainWindow(const ClipboardBrowserSharedPtr &sharedData, QWidget *par
     m_menu->setObjectName("Menu");
 
     auto act = m_trayMenu->addAction( appIcon(), tr("&Show/Hide") );
-    connect(act, &QAction::triggered, this, &MainWindow::toggleVisible);
+    connect(act, &QAction::triggered, this, &MainWindow::toggleVisibleFromTray);
     m_trayMenu->setDefaultAction(act);
     addTrayAction(Actions::File_Preferences);
     addTrayAction(Actions::File_ToggleClipboardStoring);
@@ -694,6 +878,32 @@ MainWindow::MainWindow(const ClipboardBrowserSharedPtr &sharedData, QWidget *par
 bool MainWindow::browseMode() const
 {
     return ui->searchBar->isHidden();
+}
+
+QStringList MainWindow::copyqStats() const
+{
+    int totalTabs = 0;
+    int loadedTabs = 0;
+    for (auto *placeholder : findChildren<ClipboardBrowserPlaceholder*>()) {
+        ++totalTabs;
+        if (placeholder->isDataLoaded())
+            ++loadedTabs;
+    }
+
+    QStringList lines;
+    if (totalTabs > 0) {
+        lines += QStringLiteral("TABS: total=%1, loaded=%2")
+            .arg(totalTabs).arg(loadedTabs);
+    }
+
+    lines += QStringLiteral("COMMANDS: automatic=%1, display=%2, menu=%3, tray_menu=%4, script=%5")
+        .arg(m_automaticCommands.size())
+        .arg(m_displayCommands.size())
+        .arg(m_menuCommands.size())
+        .arg(m_trayMenuCommands.size())
+        .arg(m_scriptCommands.size());
+
+    return lines;
 }
 
 void MainWindow::exit()
@@ -726,13 +936,7 @@ void MainWindow::exit()
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     hideWindow();
-#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
     event->accept();
-#else
-    // This is needed in older versions of Qt (tested in Qt 5.12.8),
-    // otherwise focusing is somewhat broken (test pasteFromMainWindow()).
-    event->ignore();
-#endif
     COPYQ_LOG("Got main window close event.");
 }
 
@@ -794,7 +998,7 @@ void MainWindow::createMenu()
     menu->addSeparator();
 
     // - preferences
-    createAction( Actions::File_Preferences, &MainWindow::openPreferences, menu );
+    QAction *preferencesAction = createAction( Actions::File_Preferences, &MainWindow::openPreferences, menu );
 
     // - commands
     createAction( Actions::File_Commands, &MainWindow::openCommands, menu );
@@ -821,7 +1025,7 @@ void MainWindow::createMenu()
     menu->addSeparator();
 
     // - exit
-    createAction( Actions::File_Exit, &MainWindow::exit, menu );
+    QAction *exitAction = createAction( Actions::File_Exit, &MainWindow::exit, menu );
 
     // Edit
     menu = menubar->addMenu( tr("&Edit") );
@@ -884,6 +1088,10 @@ void MainWindow::createMenu()
 
     // Open Item Menu
     createAction( Actions::ItemMenu, &MainWindow::showContextMenu, nullptr );
+
+    // Show Menu Bar (not in the menu bar: for when the menu bar is hidden)
+    QAction *showMenuBarAction = createAction( Actions::Misc_ShowMenuBar, &MainWindow::showMenuBar, nullptr );
+    m_menuBarStandIns = {showMenuBarAction, preferencesAction, exitAction};
 
     for (auto subMenu : menuBar()->findChildren<QMenu*>()) {
         connect( subMenu, &QMenu::aboutToShow,
@@ -1006,6 +1214,9 @@ void MainWindow::updateContextMenuTimeout()
     addItemAction( Actions::Item_MoveToTop, this, &MainWindow::moveToTop );
     addItemAction( Actions::Item_MoveToBottom, this, &MainWindow::moveToBottom );
 
+    if (m_hiddenMenuBar)
+        m_hiddenMenuBar->addFallbackActions(m_menuItem);
+
     updateToolBar();
     updateActionShortcuts();
 }
@@ -1028,7 +1239,11 @@ void MainWindow::updateItemPreviewTimeout()
                 : nullptr;
 
         ui->scrollAreaItemPreview->setVisible(w != nullptr);
-        ui->scrollAreaItemPreview->setWidget(w);
+        if (w) {
+            ui->scrollAreaItemPreview->setWidget(w);
+        } else if (auto *old = ui->scrollAreaItemPreview->takeWidget()) {
+            old->deleteLater();
+        }
         if (w) {
             ui->dockWidgetItemPreview->setStyleSheet( c->styleSheet() );
             w->show();
@@ -1084,16 +1299,28 @@ void MainWindow::setScriptOverrides(const QVector<int> &overrides, int actionId)
 
 bool MainWindow::isScriptOverridden(int id) const
 {
-    return 
+    return
         // Assume everything is overridden until collectOverrides() finishes
         (m_actionCollectOverrides && m_actionCollectOverrides->isRunning() && m_overrides.isEmpty())
         || std::binary_search(m_overrides.begin(), m_overrides.end(), id);
 }
 
+QVariant MainWindow::callPlugin(const QVariantList &arguments)
+{
+    const QString name = arguments.value(0).toString();
+    for (const auto &loader : m_sharedData->itemFactory->loaders()) {
+        if (loader->id() == name) {
+            return loader->isEnabled()
+                ? loader->scriptCallback(arguments.mid(1)) : QVariant();
+        }
+    }
+    return {};
+}
+
 void MainWindow::onAboutToQuit()
 {
     if (cm)
-        cm->disconnect();
+        cm->close();
 
     saveMainWindowState( objectName(), saveState() );
     hideWindow();
@@ -1102,7 +1329,9 @@ void MainWindow::onAboutToQuit()
 
     stopMenuCommandFilters(&m_itemMenuMatchCommands);
     stopMenuCommandFilters(&m_trayMenuMatchCommands);
-    terminateAction(&m_displayActionId);
+    abortAction(m_displayActionId);
+    abortAction(m_provideClipboardActionId);
+    abortAction(m_provideSelectionActionId);
 }
 
 void MainWindow::onItemCommandActionTriggered(CommandAction *commandAction, const QString &triggeredShortcut)
@@ -1119,13 +1348,13 @@ void MainWindow::onItemCommandActionTriggered(CommandAction *commandAction, cons
     if ( !command.cmd.isEmpty() ) {
         if (command.transform) {
             for (const auto &index : selected) {
-                auto actionData = addSelectionData(*c, index, {index});
+                auto actionData = selectionData(*c, index, {index});
                 if ( !triggeredShortcut.isEmpty() )
                     actionData.insert(mimeShortcut, triggeredShortcut);
                 action(actionData, command, index);
             }
         } else {
-            auto actionData = addSelectionData(*c);
+            auto actionData = selectionData(*c);
             if ( !triggeredShortcut.isEmpty() )
                 actionData.insert(mimeShortcut, triggeredShortcut);
             action(actionData, command, QModelIndex());
@@ -1143,7 +1372,7 @@ void MainWindow::onItemCommandActionTriggered(CommandAction *commandAction, cons
         }
     }
 
-    if (command.remove)
+    if ( command.remove && (command.tab.isEmpty() || command.tab != c->tabName()) )
         c->removeIndexes(selected);
 
     if (command.hideWindow)
@@ -1156,7 +1385,7 @@ void MainWindow::onClipboardCommandActionTriggered(CommandAction *commandAction,
     if (data == nullptr)
         return;
 
-    auto actionData = cloneData(*data);
+    auto actionData = cloneData(data);
     if ( !triggeredShortcut.isEmpty() )
         actionData.insert(mimeShortcut, triggeredShortcut);
 
@@ -1165,14 +1394,15 @@ void MainWindow::onClipboardCommandActionTriggered(CommandAction *commandAction,
     action( actionData, command, QModelIndex() );
 }
 
-void MainWindow::onTabWidgetDropItems(const QString &tabName, const QMimeData *data)
+void MainWindow::onTabWidgetDropItems(const QString &tabName, const QMimeData *data, bool *accepted)
 {
     auto browser = tab(tabName);
 
     if (browser) {
         const QVariantMap dataMap = data->hasFormat(mimeItems)
-                ? cloneData(*data, QStringList() << mimeItems) : cloneData(*data);
-        browser->addAndSelect(dataMap, 0);
+                ? cloneData(data, QStringList() << mimeItems) : cloneData(data);
+        if ( browser->addAndSelect(dataMap, 0) )
+            *accepted = true;
     }
 }
 
@@ -1195,12 +1425,13 @@ void MainWindow::showContextMenuAt(QPoint position)
 void MainWindow::showContextMenu()
 {
     auto c = browser();
-    if (!c)
+    const auto index = c ? c->currentIndex() : QModelIndex();
+    if ( !index.isValid() ) {
+        const QRect rect = centralWidget()->rect();
+        if (m_hiddenMenuBar)
+            m_hiddenMenuBar->showFallbackMenu( centralWidget()->mapToGlobal(rect.center()) );
         return;
-
-    const auto index = c->currentIndex();
-    if ( !index.isValid() )
-        return;
+    }
 
     const auto itemRect = c->visualRect(index);
     const auto viewportPosition = itemRect.center();
@@ -1288,7 +1519,10 @@ void MainWindow::onBrowserCreated(ClipboardBrowser *browser)
                         browser, topLeft.row(), bottomRight.row());
                     }
              } );
+}
 
+void MainWindow::onBrowserLoaded(ClipboardBrowser *browser)
+{
     if (isScriptOverridden(ScriptOverrides::OnItemsLoaded)) {
         runScript(
             QStringLiteral("onItemsLoaded()"),
@@ -1351,7 +1585,7 @@ void MainWindow::onActionDialogAccepted(const Command &command, const QStringLis
     auto act = new Action();
     act->setCommand(command.cmd, arguments);
     act->setInputWithFormat(data, command.input);
-    act->setName(command.name);
+    act->setName(command.localizedName());
     act->setData(data);
 
     if ( !command.output.isEmpty() ) {
@@ -1372,7 +1606,7 @@ void MainWindow::onSearchShowRequest(const QString &text)
 
     enterSearchMode();
 
-    if (!m_options.viMode || text != "/") {
+    if (m_options.navigationStyle != NavigationStyle::Vi || text != "/") {
         ui->searchBar->setText(text);
         ui->searchBar->end(false);
     }
@@ -1503,6 +1737,8 @@ ClipboardBrowserPlaceholder *MainWindow::createTab(const QString &name, TabNameM
         placeholder = new ClipboardBrowserPlaceholder(name, m_sharedData, this);
         connect( placeholder, &ClipboardBrowserPlaceholder::browserCreated,
                  this, &MainWindow::onBrowserCreated );
+        connect( placeholder, &ClipboardBrowserPlaceholder::browserLoaded,
+                 this, &MainWindow::onBrowserLoaded );
         connect( placeholder, &ClipboardBrowserPlaceholder::browserDestroyed,
                  this, [this, placeholder]() { onBrowserDestroyed(placeholder); } );
 
@@ -1512,6 +1748,9 @@ ClipboardBrowserPlaceholder *MainWindow::createTab(const QString &name, TabNameM
 
     const TabProperties tab = tabs.tabProperties(name);
     placeholder->setStoreItems(tab.storeItems);
+    placeholder->setEncryptedExpireSeconds(
+        tab.encryptedExpireSeconds > 0
+        ? tab.encryptedExpireSeconds : m_sharedData->encryptedExpireSeconds);
 
     int maxItemCount = tab.maxItemCount;
     if (maxItemCount <= 0)
@@ -1541,13 +1780,6 @@ QAction *MainWindow::addTrayAction(Actions::Id id)
     QAction *act = actionForMenuItem(id, m_trayMenu, Qt::WindowShortcut);
     m_trayMenu->addAction(act);
     return act;
-}
-
-void MainWindow::updateTabIcon(const QString &newName, const QString &oldName)
-{
-    const QString icon = getIconNameForTabName(oldName);
-    if ( !icon.isEmpty() )
-        setIconNameForTabName(newName, icon);
 }
 
 template <typename Receiver, typename ReturnType>
@@ -1581,12 +1813,13 @@ void MainWindow::addCommandsToItemMenu(ClipboardBrowser *c)
         return;
     }
 
-    auto data = addSelectionData(*c);
+    auto data = selectionData(*c);
     const auto commands = commandsForMenu(data, c->tabName(), m_menuCommands);
 
     for (const auto &command : commands) {
-        QString name = command.name;
-        QMenu *currentMenu = createSubMenus(&name, m_menuItem);
+        QString name = command.localizedName();
+        QMenu *_rootMenu, *currentMenu;
+        std::tie(_rootMenu, currentMenu) = createSubMenus(&name, m_menuItem);
         auto act = new CommandAction(command, name, currentMenu);
         c->addAction(act);
 
@@ -1616,12 +1849,30 @@ void MainWindow::addCommandsToTrayMenu(const QVariantMap &clipboardData, QList<Q
         data.insert( mimeWindowTitle, m_windowForMenuPaste->getTitle() );
 
     const auto commands = commandsForMenu(data, placeholder->tabName(), m_trayMenuCommands);
+    QList<QKeySequence> usedShortcuts;
 
+    const QRegularExpression showTrayCmdRe(R"(^(copyq: menu\(\)|copyq menu)$)");
     for (const auto &command : commands) {
-        QString name = command.name;
-        QMenu *currentMenu = createSubMenus(&name, m_trayMenu);
+        // Skip command to show the tray menu itself
+        if (command.internalId == QStringLiteral("copyq_global_menu")
+            || command.cmd.simplified().contains(showTrayCmdRe))
+        {
+            continue;
+        }
+
+        QString name = command.localizedName();
+        QMenu *rootMenu, *currentMenu;
+        std::tie(rootMenu, currentMenu) = createSubMenus(&name, m_trayMenu);
         auto act = new CommandAction(command, name, currentMenu);
-        actions->append(act);
+
+        const QList<QKeySequence> uniqueShortcuts = getUniqueShortcuts(
+                command.globalShortcuts, &usedShortcuts);
+        act->setShortcuts(uniqueShortcuts);
+
+        if (rootMenu)
+            actions->append(rootMenu->menuAction());
+        else
+            actions->append(act);
 
         addMenuMatchCommand(&m_trayMenuMatchCommands, command.matchCmd, act);
 
@@ -1678,17 +1929,50 @@ void MainWindow::stopMenuCommandFilters(MainWindow::MenuMatchCommands *menuMatch
     ++menuMatchCommands->currentRun;
     menuMatchCommands->matchCommands.clear();
     menuMatchCommands->actions.clear();
-    terminateAction(&menuMatchCommands->actionId);
+    abortAction(menuMatchCommands->actionId);
 }
 
-void MainWindow::terminateAction(int *actionId)
+bool MainWindow::abortAction(int &actionId, int waitMs, int terminateAfterMs, int killAfterMs)
 {
-    if (*actionId == -1)
-        return;
+    if (actionId == -1)
+        return true;
 
-    const int id = *actionId;
-    *actionId = -1;
-    emit sendActionData(id, "ABORT");
+    const int oldActionId = actionId;
+
+    // Send CommandStop for clean exit.
+    emit stopAction(oldActionId);
+
+    if (Action *action = m_sharedData->actions->findAction(oldActionId)) {
+        if (waitMs > 0)
+            action->waitForFinished(waitMs);
+        if (action->isRunning()) {
+            if (terminateAfterMs >= 0)
+                QTimer::singleShot(terminateAfterMs, action, &Action::requestTerminate);
+            if (killAfterMs >= 0)
+                QTimer::singleShot(terminateAfterMs + killAfterMs, action, &Action::requestKill);
+        }
+    }
+
+    // Re-entrancy guard: if another call for the same tracked action ID
+    // ran during the nested event loop, it already set actionId.
+    if (actionId != oldActionId)
+        return false;
+
+    actionId = -1;
+    return true;
+}
+
+bool MainWindow::registerClipboardProviderAction(int actionId, ClipboardMode mode)
+{
+    int &tracked = mode == ClipboardMode::Clipboard
+        ? m_provideClipboardActionId
+        : m_provideSelectionActionId;
+
+    if (tracked != actionId && !abortAction(tracked, 1000))
+        return false;
+
+    tracked = actionId;
+    return true;
 }
 
 bool MainWindow::isItemMenuDefaultActionValid() const
@@ -1713,7 +1997,7 @@ void MainWindow::updateToolBar()
         } else if ( !action->icon().isNull() ) {
             act = m_toolBar->addAction(QString());
 
-            const auto update = [=]() {
+            const auto update = [action, act]() {
                 const QIcon icon = action->icon();
                 act->setIcon(icon);
 
@@ -1809,26 +2093,17 @@ void MainWindow::updateActionShortcuts()
             continue;
 
         const Command &command = act->command();
-        QList<QKeySequence> uniqueShortcuts;
+        const QList<QKeySequence> uniqueShortcuts = getUniqueShortcuts(
+                command.shortcuts + command.globalShortcuts, &usedShortcuts);
 
-        const auto addShortuct = [&](const QString &shortcutText) {
-            const QKeySequence shortcut(shortcutText, QKeySequence::PortableText);
-            if ( !shortcut.isEmpty() && !usedShortcuts.contains(shortcut) ) {
-                usedShortcuts.append(shortcut);
-                uniqueShortcuts.append(shortcut);
-
-                if ( !isItemMenuDefaultActionValid() && isItemActivationShortcut(shortcut) )
-                    m_menuItem->setDefaultAction(act);
+        for (const auto &shortcut : uniqueShortcuts) {
+            if ( !isItemMenuDefaultActionValid() && isItemActivationShortcut(shortcut) ) {
+                m_menuItem->setDefaultAction(act);
+                break;
             }
-        };
+        }
 
-        for (const auto &shortcutText : command.shortcuts)
-            addShortuct(shortcutText);
-        for (const auto &shortcutText : command.globalShortcuts)
-            addShortuct(shortcutText);
-
-        if (!uniqueShortcuts.isEmpty())
-            act->setShortcuts(uniqueShortcuts);
+        act->setShortcuts(uniqueShortcuts);
     }
 
     for (int id = 0; id < m_actions.size(); ++id) {
@@ -1923,13 +2198,20 @@ void MainWindow::activateMenuItem(ClipboardBrowserPlaceholder *placeholder, cons
     PlatformWindowPtr lastWindow = m_windowForMenuPaste;
 
     if ( m_options.trayItemPaste && !omitPaste && canPaste() ) {
+        // Raise the target window before paste so that getCurrentWindow()
+        // returns it even when the scripted paste() path is taken.  On
+        // macOS, closing the menu transitions the app to background, so
+        // without this raise getCurrentWindow() returns the wrong window.
+        if (lastWindow)
+            lastWindow->raise();
+
         if (isScriptOverridden(ScriptOverrides::Paste)) {
             COPYQ_LOG("Pasting item with paste()");
             runScript(QStringLiteral("paste()"));
         } else if (lastWindow) {
             COPYQ_LOG( QStringLiteral("Pasting item from tray menu to: %1")
                        .arg(lastWindow->getTitle()) );
-            lastWindow->pasteClipboard();
+            lastWindow->pasteFromClipboard();
         }
     }
 }
@@ -1942,7 +2224,32 @@ bool MainWindow::toggleMenu(TrayMenu *menu, QPoint pos)
     }
 
     menu->popup( toScreen(pos, menu) );
+
+#ifdef Q_OS_MACOS
+    // On macOS, menus need the full activation sequence even when Qt
+    // considers the app already active (popup() created a Qt window, so
+    // applicationState() returns ApplicationActive even though macOS may
+    // not have granted real focus yet).  Flush events between activation
+    // and raiseWindow so the activation-policy change from
+    // ForegroundBackgroundFilter is fully processed before the
+    // platform-level focus steal.
+    menu->activateWindow();
+    QApplication::setActiveWindow(menu);
+    QApplication::processEvents();
+#endif
     raiseWindow(menu);
+
+    // On Wayland the menu is a frameless toplevel (not a popup), so
+    // raiseWindow's activation guard ("app already active") is not
+    // sufficient — the compositor won't move focus from another toplevel
+    // (e.g. an open dialog) to the newly mapped menu window without an
+    // explicit activation request after the raise.
+    if (!menu->windowFlags().testFlag(Qt::Popup)) {
+        menu->activateWindow();
+        QApplication::setActiveWindow(menu);
+        menu->setFocus();
+    }
+
     return true;
 }
 
@@ -1951,36 +2258,32 @@ bool MainWindow::toggleMenu(TrayMenu *menu)
     return toggleMenu(menu, QCursor::pos());
 }
 
-bool MainWindow::exportDataFrom(const QString &fileName, const QStringList &tabs, bool exportConfiguration, bool exportCommands)
+bool MainWindow::exportDataFrom(const QString &fileName, const QStringList &tabs, bool exportConfiguration, bool exportCommands, const Encryption::EncryptionKey &encryptionKey)
 {
-    QTemporaryFile file(fileName + ".XXXXXX.part");
-    if ( !file.open() ) {
-        log( QString("Failed to open temporary file: %1")
-             .arg(file.errorString()), LogError );
+    QSaveFile file(fileName);
+    if ( !file.open(QIODevice::WriteOnly) ) {
+        qCCritical(logCategory) << "Failed to open file for export:"
+            << file.fileName() << "message:" << file.errorString();
         return false;
     }
 
     QDataStream out(&file);
-    if ( !exportDataV4(&out, tabs, exportConfiguration, exportCommands) )
+    const bool ok = encryptionKey.isValid()
+        ? exportDataV5(&out, tabs, exportConfiguration, exportCommands, encryptionKey)
+        : exportDataV4(&out, tabs, exportConfiguration, exportCommands);
+
+    const char *label = encryptionKey.isValid()
+        ? "Export (v5) failed" : "Export (v4) failed";
+    if ( !checkFileAndStreamErrors(file, out, label) )
         return false;
 
-    if ( !file.flush() ) {
-        log( QString("Failed to flush temporary file %1: %2")
-             .arg(file.fileName(), file.errorString()), LogError );
+    if (!ok)
         return false;
-    }
 
-    QFile originalFile(fileName);
-    if ( originalFile.exists() && !originalFile.remove(fileName) ) {
-        log( QString("Failed to remove original file %1: %2")
-             .arg(fileName, originalFile.errorString()), LogError );
-        return false;
-    }
-
-    file.setAutoRemove(false);
-    if ( !file.rename(fileName) ) {
-        log( QString("Failed to move temporary file %1: %2")
-             .arg(file.fileName(), file.errorString()), LogError );
+    if ( !file.commit() ) {
+        qCCritical(logCategory) << label << " - failed to save file for export:"
+            << file.fileName() << "message:" << file.errorString();
+        checkFileAndStreamErrors(file, out, label);
         return false;
     }
 
@@ -1989,99 +2292,211 @@ bool MainWindow::exportDataFrom(const QString &fileName, const QStringList &tabs
 
 bool MainWindow::exportDataV4(QDataStream *out, const QStringList &tabs, bool exportConfiguration, bool exportCommands)
 {
-    out->setVersion(QDataStream::Qt_4_7);
+    COPYQ_LOG("Exporting v4 format");
+
+    out->setVersion(dataStreamImportVersionDefault);
     (*out) << QByteArray("CopyQ v4");
 
-    QVariantMap settingsMap;
-    if (exportConfiguration) {
-        const QSettings settings;
-
-        for (const auto &key : settings.allKeys()) {
-            if ( !key.startsWith("Commands/") )
-                settingsMap[key] = serializableValue(settings, key);
-        }
-    }
-
-    QVariantList commandsList;
-    if (exportCommands) {
-        Settings settings(getConfigurationFilePath("-commands.ini"));
-
-        const int commandCount = settings.beginReadArray("Commands");
-        commandsList.reserve(commandCount);
-        for (int i = 0; i < commandCount; ++i) {
-            settings.setArrayIndex(i);
-
-            QVariantMap commandMap;
-            for ( const auto &key : settings.allKeys() )
-                commandMap[key] = serializableValue(settings, key);
-
-            commandsList.append(commandMap);
-        }
-
-        settings.endArray();
-    }
-
-    QVariantMap data;
-    if ( !tabs.isEmpty() )
-        data["tabs"] = tabs;
-    if ( !settingsMap.isEmpty() )
-        data["settings"] = settingsMap;
-    if ( !commandsList.isEmpty() )
-        data["commands"] = commandsList;
-
+    const QVariantMap data = exportSettings(tabs, exportConfiguration, exportCommands);
     (*out) << data;
 
+    const Tabs tabProps;
     for (const auto &tab : tabs) {
-        const auto i = findTabIndex(tab);
-        if (i == -1)
-            continue;
-
-        auto placeholder = getPlaceholder(i);
-        const bool wasLoaded = placeholder->isDataLoaded();
-        auto c = placeholder->createBrowserAgain();
-        if (!c) {
-            log(QString("Failed to open tab \"%1\" for export").arg(tab), LogError);
+        bool ok;
+        QVariantMap tabMap = exportTabData(tab, tabProps, &ok);
+        if (!ok)
             return false;
-        }
-
-        const auto &tabName = c->tabName();
-
-        bool saved = false;
-        QByteArray tabBytes;
-        {
-            QDataStream tabOut(&tabBytes, QIODevice::WriteOnly);
-            tabOut.setVersion(QDataStream::Qt_4_7);
-            saved = serializeData(*c->model(), &tabOut);
-        }
-
-        if (!wasLoaded)
-            placeholder->expire();
-
-        if (!saved) {
-            log(QString("Failed to export tab \"%1\"").arg(tab), LogError);
-            return false;
-        }
-
-        const auto iconName = getIconNameForTabName(tabName);
-
-        QVariantMap tabMap;
-        tabMap["name"] = tabName;
-        tabMap["data"] = tabBytes;
-        if ( !iconName.isEmpty() )
-            tabMap["icon"] = iconName;
-
-        (*out) << tabMap;
+        if (!tabMap.isEmpty())
+            (*out) << tabMap;
     }
 
     return out->status() == QDataStream::Ok;
 }
 
+bool MainWindow::exportDataV5(QDataStream *out, const QStringList &tabs, bool exportConfiguration, bool exportCommands, const Encryption::EncryptionKey &encryptionKey)
+{
+    COPYQ_LOG("Exporting v5 format");
+
+    out->setVersion(dataStreamImportVersionDefault);
+    (*out) << QByteArray("CopyQ v5");
+    out->setVersion(dataStreamImportVersionForV5);
+
+    const QVariantMap data = exportSettings(tabs, exportConfiguration, exportCommands);
+    QVariantMap dataMap;
+    for (auto it = data.constBegin(); it != data.constEnd(); ++it)
+        dataMap[it.key()] = serializeToByteArray(it.value());
+
+    serializeData(out, dataMap, -1, &encryptionKey);
+
+    const Tabs tabProps;
+    for (const auto &tab : tabs) {
+        bool ok;
+        QVariantMap tabMap = exportTabData(tab, tabProps, &ok);
+        if (!ok)
+            return false;
+        if (!tabMap.isEmpty()) {
+            tabMap.remove(QStringLiteral("name"));
+            serializeData(out, tabMap, -1, &encryptionKey);
+        }
+    }
+
+    return out->status() == QDataStream::Ok;
+}
+
+QVariantMap MainWindow::exportTabData(const QString &tab, const Tabs &tabProps, bool *ok)
+{
+    *ok = true;
+    const auto i = findTabIndex(tab);
+    if (i == -1)
+        return {};
+
+    auto placeholder = getPlaceholder(i);
+    const bool wasLoaded = placeholder->isDataLoaded();
+    auto c = placeholder->createBrowserAgain();
+    if (!c) {
+        qCCritical(logCategory) << "Failed to open tab for export" << tab;
+        *ok = false;
+        return {};
+    }
+
+    const auto &tabName = c->tabName();
+
+    bool saved = false;
+    QByteArray tabBytes;
+    {
+        QDataStream tabOut(&tabBytes, QIODevice::WriteOnly);
+        tabOut.setVersion(dataStreamImportVersionDefault);
+        saved = serializeData(*c->model(), &tabOut);
+    }
+
+    if (!wasLoaded)
+        placeholder->expire();
+
+    if (!saved) {
+        qCCritical(logCategory) << "Failed to export tab" << tab;
+        *ok = false;
+        return {};
+    }
+
+    const auto iconName = tabProps.tabProperties(tabName).iconName;
+
+    QVariantMap tabMap;
+    tabMap[QStringLiteral("name")] = tabName;
+    tabMap[QStringLiteral("data")] = tabBytes;
+    if ( !iconName.isEmpty() )
+        tabMap[QStringLiteral("icon")] = iconName;
+
+    return tabMap;
+}
+
+bool MainWindow::canImport(const ImportSelection &sel)
+{
+    // Configuration dialog shouldn't be open.
+    if (!sel.configuration.isEmpty() && cm) {
+        log("Failed to import configuration while configuration dialog is open", LogError);
+        return false;
+    }
+
+    // Close command dialog.
+    if (!sel.commands.isEmpty() && !maybeCloseCommandDialog()) {
+        log("Failed to import command while command dialog is open", LogError);
+        return false;
+    }
+
+    return true;
+}
+
+void MainWindow::importSelected(const ImportSelection &sel)
+{
+    if (!sel.configuration.isEmpty()) {
+        log("Importing settings");
+
+        AppConfig appConfig;
+
+        for (auto it = sel.configuration.constBegin(); it != sel.configuration.constEnd(); ++it)
+            appConfig.settings().setValue( it.key(), it.value() );
+
+        emit configurationChanged(&appConfig);
+    }
+
+    if (!sel.commands.isEmpty()) {
+        log("Importing commands");
+
+        // Re-create command dialog again later.
+        if (m_commandDialog) {
+            m_commandDialog->deleteLater();
+            m_commandDialog = nullptr;
+        }
+
+        Settings settings(configurationFilePath("-commands.ini"));
+
+        const QString commandGroup = QStringLiteral("Command");
+        const QString commandsGroup = QStringLiteral("Commands");
+
+        int i = settings.beginReadArray(commandsGroup);
+        settings.endArray();
+
+        // Replace single Command group with Commands array
+        QVariantMap singleCommand;
+        settings.beginGroup(commandGroup);
+        for ( const auto &key : settings.allKeys() )
+            singleCommand[key] = settings.value(key);
+        settings.endGroup();
+        settings.remove(commandGroup);
+
+        settings.beginWriteArray(commandsGroup);
+
+        if (!singleCommand.isEmpty()) {
+            settings.setArrayIndex(i++);
+            for (auto it = singleCommand.constBegin(); it != singleCommand.constEnd(); ++it)
+                settings.setValue( it.key(), it.value() );
+        }
+
+        for (const auto &commandDataValue : sel.commands) {
+            settings.setArrayIndex(i++);
+            const auto commandMap = commandDataValue.toMap();
+            for (auto it = commandMap.constBegin(); it != commandMap.constEnd(); ++it)
+                settings.setValue( it.key(), it.value() );
+        }
+
+        settings.endArray();
+
+        updateEnabledCommands();
+    }
+}
+
+bool MainWindow::importDataV2(QDataStream *in)
+{
+    COPYQ_LOG("Importing v2 format");
+
+    QString tabName;
+    *in >> tabName;
+    if ( tabName.isEmpty() )
+        return false;
+
+    // Find unique tab name.
+    renameToUnique(&tabName, ui->tabWidget->tabs());
+
+    auto c = createTab(tabName, MatchExactTabName, Tabs())->createBrowser();
+    if (!c) {
+        qCCritical(logCategory) << "Import (v2) failed: Failed to create tab" << tabName;
+        return false;
+    }
+
+    if ( !deserializeData(c->model(), in) )
+        return false;
+
+    c->loadItems();
+    c->saveItems();
+
+    ui->tabWidget->setCurrentIndex( ui->tabWidget->count() - 1 );
+
+    return true;
+}
+
 bool MainWindow::importDataV3(QDataStream *in, ImportOptions options)
 {
-    QByteArray header;
-    (*in) >> header;
-    if ( !header.startsWith("CopyQ v3") )
-        return false;
+    COPYQ_LOG("Importing v3 format");
 
     QVariantMap data;
     (*in) >> data;
@@ -2098,27 +2513,9 @@ bool MainWindow::importDataV3(QDataStream *in, ImportOptions options)
         tabs.append(oldTabName);
     }
 
-    const auto settingsMap = data.value("settings").toMap();
-    const auto commandsList = data.value("commands").toList();
-
-    bool importConfiguration = true;
-    bool importCommands = true;
-
-    if (options == ImportOptions::Select) {
-        ImportExportDialog importDialog(this);
-        importDialog.setWindowTitle( tr("Options for Import") );
-        importDialog.setTabs(tabs);
-        importDialog.setHasConfiguration( !settingsMap.isEmpty() );
-        importDialog.setHasCommands( !commandsList.isEmpty() );
-        importDialog.setConfigurationEnabled(true);
-        importDialog.setCommandsEnabled(true);
-        if ( importDialog.exec() != QDialog::Accepted )
-            return true;
-
-        tabs = importDialog.selectedTabs();
-        importConfiguration = importDialog.isConfigurationEnabled();
-        importCommands = importDialog.isCommandsEnabled();
-    }
+    const ImportSelection importSelection = getImportSelection(data, options, this);
+    if (!canImport(importSelection))
+        return false;
 
     const Tabs tabProps;
     for (const auto &tabMapValue : tabsList) {
@@ -2127,120 +2524,26 @@ bool MainWindow::importDataV3(QDataStream *in, ImportOptions options)
         if ( !tabs.contains(oldTabName) )
             continue;
 
-        auto tabName = oldTabName;
-        renameToUnique( &tabName, ui->tabWidget->tabs() );
-
-        const auto iconName = tabMap.value("icon").toString();
-        if ( !iconName.isEmpty() )
-            setIconNameForTabName(tabName, iconName);
-
-        auto c = createTab(tabName, MatchExactTabName, tabProps)->createBrowser();
-        if (!c) {
-            log(QString("Failed to create tab \"%1\" for import").arg(tabName), LogError);
+        if ( !importTabData(oldTabName, tabMap, tabProps, {}) )
             return false;
-        }
-
-        const auto tabBytes = tabMap.value("data").toByteArray();
-        QDataStream tabIn(tabBytes);
-        tabIn.setVersion(QDataStream::Qt_4_7);
-
-        // Don't read items based on current value of "maxitems" option since
-        // the option can be later also imported.
-        if ( !deserializeData( c->model(), &tabIn, Config::maxItems ) ) {
-            log(QString("Failed to import tab \"%1\"").arg(tabName), LogError);
-            return false;
-        }
-
-        const auto i = findTabIndex(tabName);
-        if (i != -1)
-            getPlaceholder(i)->expire();
     }
 
-    if (importConfiguration) {
-        // Configuration dialog shouldn't be open.
-        if (cm) {
-            log("Failed to import configuration while configuration dialog is open", LogError);
-            return false;
-        }
-
-        Settings settings;
-
-        for (auto it = settingsMap.constBegin(); it != settingsMap.constEnd(); ++it)
-            settings.setValue( it.key(), it.value() );
-
-        AppConfig appConfig;
-        emit configurationChanged(&appConfig);
-    }
-
-    if (importCommands) {
-        // Close command dialog.
-        if ( !maybeCloseCommandDialog() ) {
-            log("Failed to import command while command dialog is open", LogError);
-            return false;
-        }
-
-        // Re-create command dialog again later.
-        if (m_commandDialog) {
-            m_commandDialog->deleteLater();
-            m_commandDialog = nullptr;
-        }
-
-        Settings settings;
-
-        int i = settings.beginReadArray("Commands");
-        settings.endArray();
-
-        settings.beginWriteArray("Commands");
-
-        for ( const auto &commandDataValue : commandsList ) {
-            settings.setArrayIndex(i++);
-            const auto commandMap = commandDataValue.toMap();
-            for (auto it = commandMap.constBegin(); it != commandMap.constEnd(); ++it)
-                settings.setValue( it.key(), it.value() );
-        }
-
-        settings.endArray();
-
-        updateEnabledCommands();
-    }
-
-    return in->status() == QDataStream::Ok;
+    importSelected(importSelection);
+    return true;
 }
 
 bool MainWindow::importDataV4(QDataStream *in, ImportOptions options)
 {
-    QByteArray header;
-    (*in) >> header;
-    if ( !header.startsWith("CopyQ v4") )
-        return false;
+    COPYQ_LOG("Importing v4 format");
 
     QVariantMap data;
     (*in) >> data;
     if ( in->status() != QDataStream::Ok )
         return false;
 
-    QStringList tabs = data.value("tabs").toStringList();
-    const auto settingsMap = data.value("settings").toMap();
-    const auto commandsList = data.value("commands").toList();
-
-    bool importConfiguration = true;
-    bool importCommands = true;
-
-    if (options == ImportOptions::Select) {
-        ImportExportDialog importDialog(this);
-        importDialog.setWindowTitle( tr("Options for Import") );
-        importDialog.setTabs(tabs);
-        importDialog.setHasConfiguration( !settingsMap.isEmpty() );
-        importDialog.setHasCommands( !commandsList.isEmpty() );
-        importDialog.setConfigurationEnabled(true);
-        importDialog.setCommandsEnabled(true);
-        if ( importDialog.exec() != QDialog::Accepted )
-            return true;
-
-        tabs = importDialog.selectedTabs();
-        importConfiguration = importDialog.isConfigurationEnabled();
-        importCommands = importDialog.isCommandsEnabled();
-    }
+    const ImportSelection importSelection = getImportSelection(data, options, this);
+    if (!canImport(importSelection))
+        return false;
 
     const Tabs tabProps;
     while ( !in->atEnd() ) {
@@ -2250,88 +2553,94 @@ bool MainWindow::importDataV4(QDataStream *in, ImportOptions options)
             return false;
 
         const auto oldTabName = tabMap["name"].toString();
-        if ( !tabs.contains(oldTabName) )
+        if ( !importSelection.tabs.contains(oldTabName) )
             continue;
 
-        auto tabName = oldTabName;
-        renameToUnique( &tabName, ui->tabWidget->tabs() );
-
-        const auto iconName = tabMap.value("icon").toString();
-        if ( !iconName.isEmpty() )
-            setIconNameForTabName(tabName, iconName);
-
-        auto c = createTab(tabName, MatchExactTabName, tabProps)->createBrowser();
-        if (!c) {
-            log(QString("Failed to create tab \"%1\" for import").arg(tabName), LogError);
+        if ( !importTabData(oldTabName, tabMap, tabProps, {}) )
             return false;
-        }
-
-        const auto tabBytes = tabMap.value("data").toByteArray();
-        QDataStream tabIn(tabBytes);
-        tabIn.setVersion(QDataStream::Qt_4_7);
-
-        // Don't read items based on current value of "maxitems" option since
-        // the option can be later also imported.
-        const int maxItems = importConfiguration ? Config::maxItems : m_sharedData->maxItems;
-        if ( !deserializeData( c->model(), &tabIn, maxItems ) ) {
-            log(QString("Failed to import tab \"%1\"").arg(tabName), LogError);
-            return false;
-        }
-
-        const auto i = findTabIndex(tabName);
-        if (i != -1)
-            getPlaceholder(i)->expire();
     }
 
-    if (importConfiguration) {
-        // Configuration dialog shouldn't be open.
-        if (cm) {
-            log("Failed to import configuration while configuration dialog is open", LogError);
+    importSelected(importSelection);
+    return true;
+}
+
+bool MainWindow::importDataV5(QDataStream *in, ImportOptions options)
+{
+    in->setVersion(dataStreamImportVersionForV5);
+
+    COPYQ_LOG("Importing v5 format");
+
+    const Encryption::EncryptionKey key = promptForImportPassword(this);
+    if ( !key.isValid() ) {
+        log("Failed to derive encryption key from password for V5 import", LogError);
+        return false;
+    }
+
+    QVariantMap dataMap;
+    if ( !deserializeData(in, &dataMap, &key) ) {
+        log("Failed to decrypt V5 metadata - incorrect password or corrupted data", LogError);
+        return false;
+    }
+
+    QVariantMap data;
+    for (auto it = dataMap.constBegin(); it != dataMap.constEnd(); ++it)
+        data[it.key()] = deserializeFromByteArray(it.value().toByteArray());
+
+    const ImportSelection importSelection = getImportSelection(data, options, this);
+    if (!canImport(importSelection))
+        return false;
+
+    const Tabs tabProps;
+    // Read each tab individually to avoid loading all tabs into memory
+    for (const auto &oldTabName : data.value("tabs").toStringList()) {
+        QVariantMap tabMap;
+        if ( !deserializeData(in, &tabMap, &key) ) {
+            log(QString("Failed to decrypt tab data - incorrect password or corrupted data"), LogError);
             return false;
         }
 
-        Settings settings;
+        if ( !importSelection.tabs.contains(oldTabName) )
+            continue;
 
-        for (auto it = settingsMap.constBegin(); it != settingsMap.constEnd(); ++it)
-            settings.setValue( it.key(), it.value() );
-
-        AppConfig appConfig;
-        emit configurationChanged(&appConfig);
-    }
-
-    if (importCommands) {
-        // Close command dialog.
-        if ( !maybeCloseCommandDialog() ) {
-            log("Failed to import command while command dialog is open", LogError);
+        if ( !importTabData(oldTabName, tabMap, tabProps, key) )
             return false;
-        }
-
-        // Re-create command dialog again later.
-        if (m_commandDialog) {
-            m_commandDialog->deleteLater();
-            m_commandDialog = nullptr;
-        }
-
-        Settings settings(getConfigurationFilePath("-commands.ini"));
-
-        int i = settings.beginReadArray("Commands");
-        settings.endArray();
-
-        settings.beginWriteArray("Commands");
-
-        for ( const auto &commandDataValue : commandsList ) {
-            settings.setArrayIndex(i++);
-            const auto commandMap = commandDataValue.toMap();
-            for (auto it = commandMap.constBegin(); it != commandMap.constEnd(); ++it)
-                settings.setValue( it.key(), it.value() );
-        }
-
-        settings.endArray();
-
-        updateEnabledCommands();
     }
 
-    return in->status() == QDataStream::Ok;
+    importSelected(importSelection);
+    return true;
+}
+
+bool MainWindow::importTabData(
+    const QString &requestedTabName,
+    const QVariantMap &tabMap,
+    const Tabs &tabProps,
+    const Encryption::EncryptionKey &key)
+{
+    QString tabName = requestedTabName;
+    renameToUnique( &tabName, ui->tabWidget->tabs() );
+
+    const auto iconName = tabMap.value("icon").toString();
+    if ( !iconName.isEmpty() )
+        setIconNameForTabName(tabName, iconName);
+
+    auto placeholder = createTab(tabName, MatchExactTabName, tabProps);
+    auto c = placeholder->createBrowser();
+    if (!c) {
+        qCCritical(logCategory) << "Failed to create tab" << tabName << "for import";
+        return false;
+    }
+
+    const auto tabBytes = tabMap.value("data").toByteArray();
+    QDataStream tabIn(tabBytes);
+    tabIn.setVersion(dataStreamImportVersionDefault);
+
+    if ( !deserializeData(c->model(), &tabIn, &key) ) {
+        qCCritical(logCategory) << "Failed to import tab" << tabName;
+        return false;
+    }
+
+    placeholder->expire();
+    return true;
 }
 
 void MainWindow::updateEnabledCommands()
@@ -2433,6 +2742,15 @@ void MainWindow::hideWindowIfNotActive()
     }
 }
 
+void MainWindow::hideWindowOnUnfocus(int intervalMsec)
+{
+    const int currentDelay = m_timerHideWindowIfNotActive.remainingTime();
+    if (currentDelay > intervalMsec)
+        return;
+
+    m_timerHideWindowIfNotActive.start(intervalMsec);
+}
+
 const Theme &MainWindow::theme() const
 {
     return m_sharedData->theme;
@@ -2461,7 +2779,7 @@ bool MainWindow::runEventHandlerScript(const QString &script, const QVariantMap 
     const bool hasUpdatesEnabled = updatesEnabled();
     setUpdatesEnabled(false);
     action->waitForFinished();
-    setUpdatesEnabled(hasUpdatesEnabled);
+    setUpdatesEnabled(hasUpdatesEnabled || updatesEnabled());
     ++m_maxEventHandlerScripts;
     return !action->actionFailed() && action->exitCode() == 0;
 }
@@ -2519,6 +2837,8 @@ void MainWindow::showError(const QString &msg)
     notification->setTitle( tr("CopyQ Error", "Notification error message title") );
     notification->setMessage(msg);
     notification->setIcon(IconCircleXmark);
+    notification->setUrgency(Notification::Urgency::High);
+    notification->setPersistency(Notification::Persistency::Persistent);
 }
 
 Notification *MainWindow::createNotification(const QString &id)
@@ -2531,6 +2851,107 @@ void MainWindow::addCommands(const QVector<Command> &commands)
     openCommands();
     if (m_commandDialog)
         m_commandDialog->addCommands(commands);
+}
+
+bool MainWindow::eventFilter(QObject *object, QEvent *ev)
+{
+    const QEvent::Type type = ev->type();
+    if (type != QEvent::KeyPress && type != QEvent::ShortcutOverride)
+        return false;
+
+    auto *event = static_cast<QKeyEvent *>(ev);
+    const int key = event->key();
+    const Qt::KeyboardModifiers modifiers = event->modifiers();
+
+    // Navigation styles can override shortcuts with Ctrl, because of some
+    // conflict with default shortcuts.
+    // User should be able to override at least the shortcuts without Ctrl.
+    if (type == QEvent::ShortcutOverride && !modifiers.testFlag(Qt::ControlModifier))
+        return false;
+
+    const auto isEscape = (m_options.navigationStyle == NavigationStyle::Vi)
+        ? isViEscape : isEmacsEscape;
+    if (isEscape({key, modifiers})) {
+        return hadleKeyOverride(object, ev, {Qt::Key_Escape});
+    }
+
+    const auto translate = (m_options.navigationStyle == NavigationStyle::Vi)
+        ? translateToVi : translateToEmacs;
+
+    if (object == this || object == browser()) {
+        const KeyMods keyMods = translate({key, modifiers});
+        if ( hadleKeyOverride(object, ev, keyMods) )
+            return true;
+
+        if (m_options.navigationStyle == NavigationStyle::Vi) {
+            switch(key) {
+            case Qt::Key_Slash:
+                if (type != QEvent::ShortcutOverride)
+                    enterSearchMode();
+                event->accept();
+                return true;
+            case Qt::Key_H:
+                if (type != QEvent::ShortcutOverride)
+                    previousTab();
+                event->accept();
+                return true;
+            case Qt::Key_L:
+                if (type != QEvent::ShortcutOverride)
+                    nextTab();
+                event->accept();
+                return true;
+            }
+        }
+    } else if (qobject_cast<QMenu*>(object)
+        && !object->property("copyq_disable_navigation").toBool()
+    ) {
+        const KeyMods keyMods = translate({key, modifiers});
+        return hadleKeyOverride(object, ev, keyMods);
+    }
+
+    return false;
+}
+
+void MainWindow::mousePressEvent(QMouseEvent *event)
+{
+    if ( m_sizeGrip && m_sizeGrip->isVisible() && event->button() == Qt::LeftButton ) {
+        // Without the title bar this is the only way to move the window.
+        if ( QWindow *window = windowHandle() ) {
+            if ( window->startSystemMove() ) {
+                event->accept();
+                return;
+            }
+        }
+    }
+
+    QMainWindow::mousePressEvent(event);
+}
+
+void MainWindow::updateSizeGrip(bool frameless)
+{
+    if (!frameless) {
+        if (m_sizeGrip)
+            m_sizeGrip->deleteLater();
+        m_sizeGrip = nullptr;
+        return;
+    }
+
+    if (!m_sizeGrip) {
+        m_sizeGrip = new QSizeGrip(this);
+        m_sizeGrip->setObjectName("size_grip");
+    }
+    placeSizeGrip();
+    m_sizeGrip->show();
+    m_sizeGrip->raise();
+}
+
+void MainWindow::placeSizeGrip()
+{
+    if (!m_sizeGrip)
+        return;
+
+    const QSize size = m_sizeGrip->sizeHint();
+    m_sizeGrip->setGeometry( QRect(QPoint(width() - size.width(), height() - size.height()), size) );
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event)
@@ -2552,33 +2973,6 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 
     if (m_options.hideTabs && key == Qt::Key_Alt)
         setHideTabs(false);
-
-    if (m_options.viMode) {
-        if (modifiers == Qt::ControlModifier && key == Qt::Key_BracketLeft) {
-            onEscape();
-            return;
-        }
-
-        if (browseMode()) {
-            if (c && handleViKey(event, c))
-                return;
-
-            switch(key) {
-            case Qt::Key_Slash:
-                enterSearchMode();
-                event->accept();
-                return;
-            case Qt::Key_H:
-                previousTab();
-                event->accept();
-                return;
-            case Qt::Key_L:
-                nextTab();
-                event->accept();
-                return;
-            }
-        }
-    }
 
     if ( event->matches(QKeySequence::NextChild) ) {
          nextTab();
@@ -2649,10 +3043,6 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
             QMainWindow::keyPressEvent(event);
             break;
 
-#ifndef Q_OS_MAC
-        case Qt::Key_Backspace:
-            // fallthrough
-#endif // Q_OS_MAC
         case Qt::Key_Escape:
             onEscape();
             break;
@@ -2675,6 +3065,25 @@ bool MainWindow::event(QEvent *event)
 {
     QEvent::Type type = event->type();
 
+    if (m_options.closeOnUnfocus) {
+        if (
+            type == QEvent::WindowDeactivate
+        ) {
+            hideWindowOnUnfocus(AppConfig().option<Config::close_on_unfocus_delay_ms>());
+        } else if (
+            type == QEvent::Move ||
+            type == QEvent::Resize ||
+            type == QEvent::DragEnter ||
+            type == QEvent::DragLeave ||
+            type == QEvent::DragMove
+        ) {
+            hideWindowOnUnfocus(AppConfig().option<Config::close_on_unfocus_extra_delay_ms>());
+        }
+    }
+
+    if (type == QEvent::Resize)
+        placeSizeGrip();
+
     if (type == QEvent::Enter) {
         if ( !isActiveWindow() )
             updateFocusWindows();
@@ -2693,7 +3102,10 @@ bool MainWindow::event(QEvent *event)
         setHideTabs(m_options.hideTabs);
         m_timerUpdateFocusWindows.start();
     } else if (type == QEvent::Hide) {
-        m_wasMaximized = isMaximized();
+        if ( !isGeometryGuardBlockedUntilHidden(this) )
+            m_wasMaximized = isMaximized();
+    } else if (type == QEvent::Show && m_showItemPreview) {
+        updateItemPreviewAfterMs(0);
     }
 
     return QMainWindow::event(event);
@@ -2710,7 +3122,7 @@ void MainWindow::loadSettings(QSettings &settings, AppConfig *appConfig)
 {
     stopMenuCommandFilters(&m_itemMenuMatchCommands);
     stopMenuCommandFilters(&m_trayMenuMatchCommands);
-    terminateAction(&m_displayActionId);
+    abortAction(m_displayActionId);
 
     theme().decorateMainWindow(this);
     ui->scrollAreaItemPreview->setObjectName("ClipboardBrowser");
@@ -2720,15 +3132,13 @@ void MainWindow::loadSettings(QSettings &settings, AppConfig *appConfig)
 
     m_options.confirmExit = appConfig->option<Config::confirm_exit>();
 
-    // always on top window hint
-    bool alwaysOnTop = appConfig->option<Config::always_on_top>();
-    setAlwaysOnTop(this, alwaysOnTop);
-    setAlwaysOnTop(m_commandDialog.data(), alwaysOnTop);
-
-    // Vi mode
-    m_options.viMode = appConfig->option<Config::vi>();
-    m_trayMenu->setViModeEnabled(m_options.viMode);
-    m_menu->setViModeEnabled(m_options.viMode);
+    m_options.navigationStyle = appConfig->option<Config::navigation_style>();
+    m_trayMenu->setNavigationStyle(m_options.navigationStyle);
+    m_menu->setNavigationStyle(m_options.navigationStyle);
+    if (m_options.navigationStyle == NavigationStyle::Default)
+        qApp->removeEventFilter(this);
+    else
+        qApp->installEventFilter(this);
 
     // Number search
     m_trayMenu->setNumberSearchEnabled(m_sharedData->numberSearch);
@@ -2746,8 +3156,18 @@ void MainWindow::loadSettings(QSettings &settings, AppConfig *appConfig)
     if ( ui->tabWidget->count() != 0 ) {
         if ( m_timerSaveTabPositions.isActive() )
             doSaveTabPositions(appConfig);
-        ui->tabWidget->saveTabInfo();
+        saveTabs();
     }
+
+    // Show the tray icon early so it is visible while the encryption
+    // password dialog blocks (see https://github.com/hluk/CopyQ/issues/3502).
+    m_options.nativeTrayMenu = appConfig->option<Config::native_tray_menu>();
+    m_options.hideMainWindow = appConfig->option<Config::hide_main_window>();
+    setTrayEnabled( !appConfig->option<Config::disable_tray>() );
+    updateIcon();
+
+    promptForEncryptionPasswordIfNeeded(appConfig);
+    reencryptTabsIfNeeded(appConfig);
 
     const QStringList tabNames = savedTabs();
 
@@ -2768,6 +3188,19 @@ void MainWindow::loadSettings(QSettings &settings, AppConfig *appConfig)
     m_options.hideTabs = appConfig->option<Config::hide_tabs>();
     setHideTabs(m_options.hideTabs);
 
+    m_options.hideMenuBar = appConfig->option<Config::hide_menu_bar>();
+    if (m_options.hideMenuBar && !m_hiddenMenuBar) {
+        m_hiddenMenuBar = new HiddenMenuBar(this);
+        m_hiddenMenuBar->setFallbackActions(m_menuBarStandIns);
+        m_hiddenMenuBar->setEnabled(true);
+        connect( m_hiddenMenuBar, &HiddenMenuBar::collapsedChanged,
+                 this, [this]() { updateContextMenu(0); } );
+    } else if (!m_options.hideMenuBar && m_hiddenMenuBar) {
+        m_hiddenMenuBar->setEnabled(false);
+        m_hiddenMenuBar->deleteLater();
+        m_hiddenMenuBar = nullptr;
+    }
+
     bool hideToolbar = appConfig->option<Config::hide_toolbar>();
     clearActions(m_toolBar);
     m_toolBar->setHidden(hideToolbar);
@@ -2775,13 +3208,21 @@ void MainWindow::loadSettings(QSettings &settings, AppConfig *appConfig)
     m_toolBar->setToolButtonStyle(hideToolBarLabels ? Qt::ToolButtonIconOnly
                                                       : Qt::ToolButtonTextUnderIcon);
 
-    m_options.hideMainWindow = appConfig->option<Config::hide_main_window>();
     m_options.closeOnUnfocus = appConfig->option<Config::close_on_unfocus>();
-    m_timerHideWindowIfNotActive.setInterval(
-        appConfig->option<Config::close_on_unfocus_delay_ms>());
 
-    const bool hideInTaskBar = appConfig->option<Config::hide_main_window_in_task_bar>();
-    setHideInTaskBar(this, hideInTaskBar);
+    WindowFlags flags(this);
+    const bool alwaysOnTop = appConfig->option<Config::always_on_top>();
+    flags.set(Qt::WindowStaysOnTopHint, alwaysOnTop);
+    if (m_commandDialog) {
+        WindowFlags dialogFlags(m_commandDialog.data());
+        dialogFlags.set(Qt::WindowStaysOnTopHint, alwaysOnTop);
+        dialogFlags.apply();
+    }
+    flags.set(Qt::Tool, appConfig->option<Config::hide_main_window_in_task_bar>());
+    const bool frameless = appConfig->option<Config::frameless_window>();
+    flags.set(Qt::FramelessWindowHint, frameless);
+    flags.apply();
+    updateSizeGrip(frameless);
 
     Q_ASSERT( ui->tabWidget->count() > 0 );
 
@@ -2820,12 +3261,7 @@ void MainWindow::loadSettings(QSettings &settings, AppConfig *appConfig)
     m_trayMenu->setStyleSheet(menuStyleSheet);
     m_menu->setStyleSheet(menuStyleSheet);
 
-    if (m_options.nativeTrayMenu != appConfig->option<Config::native_tray_menu>())
-        m_options.nativeTrayMenu = appConfig->option<Config::native_tray_menu>();
-    setTrayEnabled( !appConfig->option<Config::disable_tray>() );
     updateTrayMenuItems();
-
-    updateIcon();
 
     menuBar()->setNativeMenuBar( appConfig->option<Config::native_menu_bar>() );
 
@@ -2877,10 +3313,12 @@ void MainWindow::showWindow()
 
     moveToCurrentWorkspace(this);
 
-    if (m_wasMaximized || isMaximized())
+    if ( !isGeometryGuardBlockedUntilHidden(this) && (m_wasMaximized || isMaximized()) )
         showMaximized();
     else
         showNormal();
+
+    ensureWindowOnScreen(this);
 
     auto c = browser();
     if (c) {
@@ -2927,6 +3365,15 @@ bool MainWindow::toggleVisible()
 
     showWindow();
     return true;
+}
+
+void MainWindow::toggleVisibleFromTray()
+{
+    if (!isMinimized() && isVisible()) {
+        hideWindow();
+    } else {
+        showWindow();
+    }
 }
 
 void MainWindow::showBrowser(const ClipboardBrowser *browser)
@@ -2981,13 +3428,7 @@ void MainWindow::trayActivated(int reason)
     {
         toggleMenu();
     } else if ( reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick ) {
-        // Like toggleVisible() but hide window if visible and not focused
-        // (this seems better behavior when using mouse).
-        if (!isMinimized() && isVisible())
-            hideWindow();
-        else
-            showWindow();
-
+        toggleVisibleFromTray();
     }
 }
 
@@ -3045,16 +3486,14 @@ void MainWindow::tabChanged(int current, int)
         if (c) {
             c->filterItems( browseMode() ? nullptr : ui->searchBar->filter() );
 
-            if ( current >= 0 ) {
-                if( !c->currentIndex().isValid() && isVisible() ) {
-                    c->setCurrent(0);
-                }
+            if ( current >= 0 && !c->currentIndex().isValid() && isVisible() ) {
+                c->setCurrent(0);
             }
 
             setTabOrder(ui->searchBar, c);
 
             if (isScriptOverridden(ScriptOverrides::OnTabSelected)) {
-                runEventHandlerScript(
+                runScript(
                     QStringLiteral("onTabSelected()"),
                     createDataMap(mimeCurrentTab, c->tabName()));
             }
@@ -3088,29 +3527,53 @@ void MainWindow::doSaveTabPositions(AppConfig *appConfig)
 
 void MainWindow::tabsMoved(const QString &oldPrefix, const QString &newPrefix)
 {
-    const QStringList tabs = ui->tabWidget->tabs();
-    Q_ASSERT( oldPrefix == newPrefix || !tabs.contains(oldPrefix) );
-    Q_ASSERT( !tabs.contains(QString()) );
+    const QStringList newTabNames = ui->tabWidget->tabs();
+    Q_ASSERT( oldPrefix == newPrefix || !newTabNames.contains(oldPrefix) );
+    Q_ASSERT( !newTabNames.contains(QString()) );
 
-    const QString prefix = oldPrefix + '/';
+    AppConfig appConfig;
+    Tabs tabs;
 
-    // Rename tabs if needed.
-    for (int i = 0 ; i < tabs.size(); ++i) {
+    // The stacked widget was already reordered by onTabsMoved before this
+    // slot fires.  Capture the original tab order from config so we can
+    // restore it if rollback is needed.
+    const QStringList originalTabOrder = appConfig.option<Config::tabs>();
+
+    // Rename tabs if needed, tracking successes for rollback.
+    struct RenamedTab { int index; QString oldName; };
+    QVector<RenamedTab> renamedTabs;
+    bool failed = false;
+
+    for (int i = 0 ; i < newTabNames.size(); ++i) {
+        const QString &newTabName = newTabNames[i];
         auto placeholder = getPlaceholder(i);
         const QString oldTabName = placeholder->tabName();
-
-        if ( (oldTabName == oldPrefix || oldTabName.startsWith(prefix)) && newPrefix != oldPrefix) {
-            const QString newName = newPrefix + oldTabName.mid(oldPrefix.size());
-            updateTabIcon(newName, placeholder->tabName());
-            if ( placeholder->setTabName(newName) ) {
-                auto c = placeholder->browser();
-                if (c)
-                    ui->tabWidget->setTabItemCount( newName, c->length() );
+        if (newTabName != oldTabName) {
+            if ( updateTabName(placeholder, newTabName, &appConfig, &tabs) ) {
+                renamedTabs.append({i, oldTabName});
+            } else {
+                ui->tabWidget->setTabName(i, oldTabName);
+                failed = true;
+                break;
             }
         }
     }
 
-    saveTabPositions();
+    if (failed && !renamedTabs.isEmpty()) {
+        log("Rolling back tab renames after partial failure", LogWarning);
+        for (auto it = renamedTabs.crbegin(); it != renamedTabs.crend(); ++it) {
+            const auto &r = *it;
+            auto placeholder = getPlaceholder(r.index);
+            if ( !updateTabName(placeholder, r.oldName, &appConfig, &tabs) )
+                log("Failed to roll back tab rename", LogError);
+            ui->tabWidget->setTabName(r.index, r.oldName);
+        }
+        ui->tabWidget->reorderTabs(originalTabOrder);
+    }
+
+    const QStringList tabNames = ui->tabWidget->tabs();
+    tabs.save(&appConfig.settings(), tabNames);
+    appConfig.setOption(Config::tabs::name(), tabNames);
 }
 
 void MainWindow::tabBarMenuRequested(QPoint pos, int tab)
@@ -3175,7 +3638,7 @@ QVariant MainWindow::config(const QVariantList &nameValue)
     return result;
 }
 
-QString MainWindow::configDescription()
+QString MainWindow::configDescription() const
 {
     ConfigurationManager configurationManager;
     QStringList options = configurationManager.options();
@@ -3340,7 +3803,28 @@ void MainWindow::setClipboard(const QVariantMap &data)
 
 void MainWindow::setClipboard(const QVariantMap &data, ClipboardMode mode)
 {
+    int &actionId = mode == ClipboardMode::Clipboard
+        ? m_provideClipboardActionId
+        : m_provideSelectionActionId;
+
+    // Abort the previous provider. Returns false if a re-entrant
+    // setClipboard() already handled this mode during the wait.
+    if (!abortAction(actionId, 1000))
+        return;
+
     m_clipboard->setData(mode, data);
+
+    auto act = new Action();
+    act->setData(data);
+    act->setCommand({
+        QStringLiteral("copyq"),
+        QStringLiteral("--clipboard-access"),
+        mode == ClipboardMode::Clipboard
+          ? QStringLiteral("provideClipboard")
+          : QStringLiteral("provideSelection")
+    });
+    runInternalAction(act);
+    actionId = act->id();
 }
 
 void MainWindow::setClipboardAndSelection(const QVariantMap &data)
@@ -3411,7 +3895,7 @@ void MainWindow::activateCurrentItemHelper()
         } else if (lastWindow) {
             COPYQ_LOG( QStringLiteral("Pasting item from main window to: %1")
                        .arg(lastWindow->getTitle()) );
-            lastWindow->pasteClipboard();
+            lastWindow->pasteFromClipboard();
         }
     }
 }
@@ -3426,6 +3910,125 @@ void MainWindow::onItemDoubleClicked()
 {
     if (!m_singleClickActivate)
         activateCurrentItem();
+}
+
+void MainWindow::promptForEncryptionPasswordIfNeeded(AppConfig *appConfig)
+{
+    // If key store was disabled, remove password from it - this avoids
+    // removing the password every time when configuration changes - locked key
+    // store would prompt for password to allow that.
+    const bool useKeyStore = appConfig->option<Config::use_key_store>();
+    if (m_usedKeyStore && !useKeyStore)
+        removePasswordFromKeychain();
+    m_usedKeyStore = useKeyStore;
+
+    if ( !appConfig->option<Config::encrypt_tabs>() ) {
+        m_sharedData->encryptionKey.clear();
+    } else if ( !m_sharedData->encryptionKey.isValid() ) {
+        m_sharedData->passwordPrompt->prompt(
+            useKeyStore ? PasswordSource::UseEnvAndKeychain : PasswordSource::UseEnvOnly,
+            [this](const Encryption::EncryptionKey &key){
+                if (key.isValid())
+                    m_sharedData->encryptionKey = key;
+            });
+    }
+}
+
+void MainWindow::reencryptTabsIfNeeded(AppConfig *appConfig)
+{
+    if (m_reencrypting)
+        return;
+
+    m_reencrypting = true;
+    reencryptTabsIfNeededHelper(appConfig);
+    m_reencrypting = false;
+}
+
+void MainWindow::reencryptTabsIfNeededHelper(AppConfig *appConfig)
+{
+    const bool isEncrypted = appConfig->option<Config::encrypt_tabs>();
+    if (m_wasEncrypted == isEncrypted)
+        return;
+
+    const Encryption::EncryptionKey newEncryptionKey = m_sharedData->encryptionKey;
+
+    // Always ask for the previous password when re-encrypting.
+    Encryption::EncryptionKey oldEncryptionKey;
+    if (m_wasEncrypted) {
+        oldEncryptionKey = m_sharedData->passwordPrompt->prompt(PasswordSource::IgnoreEnvAndKeychain);
+    }
+
+    // Items may change while waiting for password prompt, persist and refresh tab list.
+    saveTabs();
+    const QStringList tabNames = savedTabs();
+
+    // Revert encryption option if password was not provided.
+    if (!oldEncryptionKey.isValid() && !newEncryptionKey.isValid()) {
+        appConfig->setOption(Config::encrypt_tabs::name(), m_wasEncrypted);
+        m_sharedData->tabsEncrypted = m_wasEncrypted;
+        return;
+    }
+
+    const bool allEncrypted = reencryptTabs(
+        tabNames,
+        m_sharedData.get(),
+        oldEncryptionKey,
+        newEncryptionKey,
+        Config::maxItems,
+        this
+    );
+
+    m_wasEncrypted = isEncrypted;
+    m_sharedData->encryptionKey = newEncryptionKey;
+
+    if (allEncrypted)
+        ::cleanDataFiles(tabNames, &m_sharedData->encryptionKey);
+
+    // If saving some tabs failed, keep the keys and the encryption enabled,
+    // otherwise remove unneeded key files.
+    if (oldEncryptionKey.isValid()) {
+        if (allEncrypted) {
+            Encryption::removeEncryptionKeys();
+            if (appConfig->option<Config::use_key_store>())
+                removePasswordFromKeychain();
+        } else {
+            appConfig->setOption(Config::encrypt_tabs::name(), true);
+            m_wasEncrypted = true;
+            m_sharedData->encryptionKey = oldEncryptionKey;
+        }
+    }
+}
+
+bool MainWindow::updateTabName(
+    ClipboardBrowserPlaceholder *placeholder,
+    const QString &newName,
+    AppConfig *appConfig,
+    Tabs *tabs)
+{
+    const QString oldName = placeholder->tabName();
+    if ( !placeholder->setTabName(newName) )
+        return false;
+
+    TabProperties tabProperties = tabs->tabProperties(oldName);
+    tabProperties.name = newName;
+    tabs->setTabProperties(tabProperties);
+
+    if (oldName == m_options.clipboardTab) {
+        m_options.clipboardTab = newName;
+        appConfig->setOption(Config::clipboard_tab::name(), newName);
+        // Restart clipboard monitoring to apply new clipboard tab configuration.
+        if (!m_clipboardStoringDisabled) {
+            emit disableClipboardStoring(true);
+            emit disableClipboardStoring(false);
+        }
+    }
+
+    if (oldName == m_options.trayTabName) {
+        m_options.trayTabName = newName;
+        appConfig->setOption(Config::tray_tab::name(), newName);
+    }
+
+    return true;
 }
 
 void MainWindow::disableClipboardStoring(bool disable)
@@ -3503,39 +4106,28 @@ void MainWindow::updateFocusWindows()
 {
     m_isActiveWindow = isActiveWindow();
 
-    if ( QApplication::activePopupWidget() )
+    if ( QApplication::activePopupWidget() ) {
+        qCDebug(logCategory) << "Focus: popup";
         return;
+    }
 
     auto platform = platformNativeInterface();
     PlatformWindowPtr lastWindow = platform->getCurrentWindow();
-    if (lastWindow) {
-        const QWidget *activeWindow = qApp->activeWindow();
-        if (activeWindow) {
-            if (activeWindow == m_trayMenu || activeWindow == m_menu) {
-                COPYQ_LOG(
-                    QStringLiteral("Focus window is \"%1\" - tray menu")
-                    .arg(lastWindow->getTitle()) );
-            } else if (activeWindow == this) {
-                COPYQ_LOG(QStringLiteral("Focus window is the main window"));
-                m_windowForMenuPaste = lastWindow;
-            } else {
-                COPYQ_LOG(QStringLiteral("Focus window is \"%1\": [%2] %3").arg(
-                    lastWindow->getTitle(),
-                    QLatin1String(activeWindow->metaObject()->className()),
-                    activeWindow->windowTitle()
-                ));
-                m_windowForMainPaste = lastWindow;
-                m_windowForMenuPaste = lastWindow;
-            }
-        } else {
-            COPYQ_LOG( QStringLiteral("Focus window is \"%1\"").arg(lastWindow->getTitle()) );
-            m_windowForMainPaste = lastWindow;
-            m_windowForMenuPaste = lastWindow;
-        }
-    }
+    if (!lastWindow)
+        return;
 
-    if (m_options.closeOnUnfocus)
-        m_timerHideWindowIfNotActive.start();
+    if (lastWindow->matchesWidget(this)) {
+        qCDebug(logCategory) << "Focus: main window";
+        m_windowForMenuPaste = lastWindow;
+    } else if (lastWindow->matchesWidget(m_trayMenu)) {
+        qCDebug(logCategory) << "Focus: tray menu";
+    } else if (lastWindow->matchesWidget(m_menu)) {
+        qCDebug(logCategory) << "Focus: menu";
+    } else {
+        qCDebug(logCategory) << "Focus:" << lastWindow->getTitle();
+        m_windowForMainPaste = lastWindow;
+        m_windowForMenuPaste = lastWindow;
+    }
 }
 
 void MainWindow::updateShortcuts()
@@ -3571,7 +4163,9 @@ void MainWindow::findNextOrPrevious()
 
 void MainWindow::enterBrowseMode()
 {
-    getPlaceholder()->setFocus();
+    auto placeholder = getPlaceholder();
+    if (placeholder)
+        placeholder->setFocus();
     ui->searchBar->hide();
 
     auto c = browserOrNull();
@@ -3587,24 +4181,16 @@ void MainWindow::enterSearchMode()
     if ( !ui->searchBar->text().isEmpty() ) {
         auto c = browserOrNull();
         if (c) {
-            const int currentRow = c->currentIndex().row();
             c->filterItems( ui->searchBar->filter() );
-            c->setCurrent(currentRow);
         }
     }
 }
 
 void MainWindow::enterSearchMode(const QString &txt)
 {
-    const bool searchModeActivated = !ui->searchBar->isVisible();
-
     ui->searchBar->show();
     ui->searchBar->setFocus(Qt::ShortcutFocusReason);
-
-    if (searchModeActivated)
-        ui->searchBar->setText(txt);
-    else
-        ui->searchBar->setText( ui->searchBar->text() + txt );
+    ui->searchBar->setText(txt);
 
     auto c = browser();
     if (c)
@@ -3653,7 +4239,7 @@ void MainWindow::openLogDialog()
 
 void MainWindow::openAboutDialog()
 {
-    openDialog<AboutDialog>(this);
+    openDialog<AboutDialog>(m_sharedData->theme, this);
 }
 
 void MainWindow::showClipboardContent()
@@ -3693,7 +4279,7 @@ ActionDialog *MainWindow::openActionDialog(const QVariantMap &data)
 void MainWindow::openActionDialog()
 {
     auto c = browser();
-    const auto data = c ? addSelectionData(*c) : QVariantMap();
+    const auto data = c ? selectionData(*c) : QVariantMap();
     openActionDialog(data);
 }
 
@@ -3708,6 +4294,12 @@ void MainWindow::showItemContent()
         openDialog<ClipboardDialog>(current, c->model(), this);
 }
 
+void MainWindow::showMenuBar()
+{
+    if (m_hiddenMenuBar)
+        m_hiddenMenuBar->show();
+}
+
 void MainWindow::openPreferences()
 {
     if ( !isEnabled() )
@@ -3718,7 +4310,7 @@ void MainWindow::openPreferences()
         return;
     }
 
-    ConfigurationManager configurationManager(m_sharedData->itemFactory, this);
+    ConfigurationManager configurationManager(m_sharedData, this);
     WindowGeometryGuard::create(&configurationManager);
 
     // notify window if configuration changes
@@ -3726,11 +4318,6 @@ void MainWindow::openPreferences()
              this, &MainWindow::configurationChanged );
     connect( &configurationManager, &ConfigurationManager::error,
              this, &MainWindow::showError );
-
-#if QT_VERSION < QT_VERSION_CHECK(5,9,3)
-    // WORKAROUND: Fix drag'n'drop in list in modal dialog for Qt 5.9.2 (QTBUG-63846).
-    configurationManager.setWindowModality(Qt::WindowModal);
-#endif
 
     cm = &configurationManager;
     configurationManager.exec();
@@ -3766,7 +4353,8 @@ void MainWindow::openCommands()
 
 ClipboardBrowser *MainWindow::browser(int index)
 {
-    return getPlaceholder(index)->createBrowser();
+    ClipboardBrowserPlaceholder *placeholder = getPlaceholder(index);
+    return placeholder ? placeholder->createBrowser() : nullptr;
 }
 
 ClipboardBrowser *MainWindow::browser()
@@ -3813,7 +4401,7 @@ void MainWindow::editNewItem()
     showWindow();
     if ( !c->isInternalEditorOpen() ) {
         c->setFocus();
-        c->editNew();
+        c->editNew(mimeText, {});
     }
 }
 
@@ -3830,7 +4418,7 @@ void MainWindow::pasteItems()
     QModelIndexList list = c->selectionModel()->selectedIndexes();
     std::sort( list.begin(), list.end() );
     const int row = list.isEmpty() ? 0 : list.first().row();
-    c->addAndSelect( cloneData(*data), row );
+    c->addAndSelect( cloneData(data), row );
 }
 
 void MainWindow::copyItems()
@@ -3849,20 +4437,37 @@ void MainWindow::copyItems()
 
 bool MainWindow::saveTab(const QString &fileName, int tabIndex)
 {
-    QFile file(fileName);
-    if ( !file.open(QIODevice::WriteOnly | QIODevice::Truncate) )
-        return false;
-
-    QDataStream out(&file);
-    out.setVersion(QDataStream::Qt_4_7);
-
     int i = tabIndex >= 0 ? tabIndex : ui->tabWidget->currentIndex();
     auto c = browser(i);
-    if (!c)
+    if (!c) {
+        qCCritical(logCategory) << "Failed to open tab for export (v2)";
         return false;
+    }
+
+    QFile file(fileName);
+    if ( !file.open(QIODevice::WriteOnly | QIODevice::Truncate) ) {
+        qCCritical(logCategory) << "Failed to open file for export (v2):"
+            << file.fileName() << "message:" << file.errorString();
+        return false;
+    }
+
+    QDataStream out(&file);
+    out.setVersion(dataStreamImportVersionDefault);
 
     out << QByteArray("CopyQ v2") << c->tabName();
-    serializeData(*c->model(), &out);
+    if ( !serializeData(*c->model(), &out) ) {
+        if (file.error() != QFile::NoError) {
+            qCCritical(logCategory) << "Export (v2) failed to file:"
+                << file.fileName() << "message:" << file.errorString();
+        }
+
+        if (out.status() != QDataStream::Ok) {
+            qCCritical(logCategory) << "Export (v2) failed to file:"
+                << file.fileName() << "reason:" << out.status();
+        }
+
+        return false;
+    }
 
     file.close();
 
@@ -3879,6 +4484,16 @@ bool MainWindow::exportData()
     if ( exportDialog.exec() != QDialog::Accepted )
         return false;
 
+    // Prompt for custom password if requested
+#ifdef WITH_QCA_ENCRYPTION
+    bool ok;
+    const Encryption::EncryptionKey key = promptForExportPassword(this, &ok);
+    if (!ok)
+        return false;
+#else
+    const Encryption::EncryptionKey key;
+#endif
+
     auto fileName = QFileDialog::getSaveFileName(
                 this, QString(), QString(), importExportFileDialogFilter() );
     if ( fileName.isNull() )
@@ -3891,7 +4506,7 @@ bool MainWindow::exportData()
     const bool exportConfiguration = exportDialog.isConfigurationEnabled();
     const bool exportCommands = exportDialog.isCommandsEnabled();
 
-    if ( !exportDataFrom(fileName, tabs, exportConfiguration, exportCommands) ) {
+    if ( !exportDataFrom(fileName, tabs, exportConfiguration, exportCommands, key) ) {
         QMessageBox::critical(
                     this, tr("Export Error"),
                     tr("Failed to export file %1!")
@@ -3915,57 +4530,72 @@ void MainWindow::saveTabs()
 bool MainWindow::loadTab(const QString &fileName)
 {
     QFile file(fileName);
-    if ( !file.open(QIODevice::ReadOnly) )
-        return false;
-
-    QDataStream in(&file);
-    in.setVersion(QDataStream::Qt_4_7);
-
-    QByteArray header;
-    QString tabName;
-    in >> header >> tabName;
-    if ( !(header.startsWith("CopyQ v1") || header.startsWith("CopyQ v2")) || tabName.isEmpty() ) {
-        file.close();
+    if ( !file.open(QIODevice::ReadOnly) ) {
+        qCCritical(logCategory) << "Failed to open file for import:"
+            << file.fileName() << "message:" << file.errorString();
         return false;
     }
 
-    // Find unique tab name.
-    renameToUnique(&tabName, ui->tabWidget->tabs());
+    QDataStream in(&file);
+    in.setVersion(dataStreamImportVersionDefault);
 
-    auto c = createTab(tabName, MatchExactTabName, Tabs())->createBrowser();
-    if (!c)
+    QByteArray header;
+    in >> header;
+    if ( in.status() != QDataStream::Ok ) {
+        checkFileAndStreamErrors(
+            file, in, "Import (v2) failed: Failed to read file header for import");
         return false;
+    }
 
-    deserializeData(c->model(), &in, m_sharedData->maxItems);
+    if ( !header.startsWith("CopyQ v1") && !header.startsWith("CopyQ v2") ) {
+        qCCritical(logCategory) << "Import (v2) failed: Unsupported header";
+        return false;
+    }
 
-    c->loadItems();
-    c->saveItems();
-
-    file.close();
-
-    ui->tabWidget->setCurrentIndex( ui->tabWidget->count() - 1 );
-
-    return true;
+    const bool ok = importDataV2(&in);
+    return checkFileAndStreamErrors(file, in, "Import (v2) failed") && ok;
 }
 
-bool MainWindow::importDataFrom(const QString &fileName, ImportOptions options)
+bool MainWindow::importDataFrom(
+    const QString &fileName, ImportOptions options)
 {
-    // Compatibility with v2.9.0 and earlier.
-    if ( loadTab(fileName) )
-        return true;
-
     QFile file(fileName);
-    if ( !file.open(QIODevice::ReadOnly) )
+    if ( !file.open(QIODevice::ReadOnly) ) {
+        qCCritical(logCategory) << "Failed to open file for import:"
+            << file.fileName() << "message:" << file.errorString();
         return false;
+    }
 
     QDataStream in(&file);
-    in.setVersion(QDataStream::Qt_4_7);
+    in.setVersion(dataStreamImportVersionDefault);
 
-    if ( importDataV4(&in, options) )
-        return true;
+    QByteArray header;
+    in >> header;
+    if ( in.status() != QDataStream::Ok ) {
+        checkFileAndStreamErrors(
+            file, in, "Import (v2) failed: Failed to read file header for import");
+        return false;
+    }
 
-    file.seek(0);
-    return importDataV3(&in, options);
+    bool ok = false;
+    const char *label = "unknown";
+    if ( header.startsWith("CopyQ v5") ) {
+        ok = importDataV5(&in, options);
+        label = "Import (v5) failed";
+    } else if ( header.startsWith("CopyQ v4") ) {
+        ok = importDataV4(&in, options);
+        label = "Import (v4) failed";
+    } else if ( header.startsWith("CopyQ v3") ) {
+        ok = importDataV3(&in, options);
+        label = "Import (v3) failed";
+    } else if ( header.startsWith("CopyQ v2") || header.startsWith("CopyQ v1") ) {
+        ok = importDataV2(&in);
+        label = "Import (v2) failed";
+    } else {
+        qCCritical(logCategory) << "Unsupported import file format";
+    }
+
+    return checkFileAndStreamErrors(file, in, label) && ok;
 }
 
 bool MainWindow::exportAllData(const QString &fileName)
@@ -3974,7 +4604,8 @@ bool MainWindow::exportAllData(const QString &fileName)
     const bool exportConfiguration = true;
     const bool exportCommands = true;
 
-    return exportDataFrom(fileName, tabs, exportConfiguration, exportCommands);
+    return exportDataFrom(
+        fileName, tabs, exportConfiguration, exportCommands, Encryption::EncryptionKey());
 }
 
 bool MainWindow::importData()
@@ -4022,7 +4653,7 @@ Action *MainWindow::action(const QVariantMap &data, const Command &cmd, const QM
         auto act = new Action();
         act->setCommand( cmd.cmd, QStringList(getTextData(data)) );
         act->setInputWithFormat(data, cmd.input);
-        act->setName(cmd.name);
+        act->setName(cmd.localizedName());
         act->setData(data);
 
         if ( !cmd.output.isEmpty() ) {
@@ -4146,26 +4777,19 @@ void MainWindow::renameTab(const QString &name, int tabIndex)
         return;
 
     auto placeholder = getPlaceholder(tabIndex);
-    if (placeholder) {
-        const QString oldName = placeholder->tabName();
-        if ( placeholder->setTabName(name) ) {
-            updateTabIcon(name, oldName);
-            ui->tabWidget->setTabName(tabIndex, name);
-            saveTabPositions();
+    if (!placeholder)
+        return;
 
-            QVariantList optionsAndValues;
-            if (oldName == m_options.clipboardTab) {
-                optionsAndValues.append(QStringLiteral("clipboard_tab"));
-                optionsAndValues.append(name);
-            }
-            if (oldName == m_options.trayTabName) {
-                optionsAndValues.append(QStringLiteral("tray_tab"));
-                optionsAndValues.append(name);
-            }
-            if ( !optionsAndValues.isEmpty() )
-                config(optionsAndValues);
-        }
-    }
+    AppConfig appConfig;
+    Tabs tabs;
+    if ( !updateTabName(placeholder, name, &appConfig, &tabs) )
+        return;
+
+    ui->tabWidget->setTabName(tabIndex, name);
+
+    const QStringList tabNames = ui->tabWidget->tabs();
+    tabs.save(&appConfig.settings(), tabNames);
+    appConfig.setOption(Config::tabs::name(), tabNames);
 }
 
 void MainWindow::removeTabGroup(const QString &name)

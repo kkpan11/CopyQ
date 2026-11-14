@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef WINPLATFORMCLIPBOARD_H
-#define WINPLATFORMCLIPBOARD_H
+#pragma once
 
 #include "platform/dummy/dummyclipboard.h"
 
@@ -10,14 +9,15 @@
 class WinPlatformClipboard final : public DummyClipboard
 {
 public:
-    void startMonitoring(const QStringList &) override;
-
     bool isHidden(const QMimeData &data) const override;
 
 protected:
+    void startMonitoringBackend(const QStringList &, ClipboardModeMask) override;
     void onChanged(int) override;
+    const long int *clipboardSequenceNumber(ClipboardMode) const override {
+        return &m_lastClipboardSequenceNumber;
+    }
 
-    DWORD m_lastClipboardSequenceNumber = -1;
+private:
+    long int m_lastClipboardSequenceNumber = 0;
 };
-
-#endif // WINPLATFORMCLIPBOARD_H

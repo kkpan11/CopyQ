@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef COMMANDDIALOG_H
-#define COMMANDDIALOG_H
+#pragma once
+
 
 #include "common/command.h"
 #include "common/commandstore.h"
@@ -67,12 +67,12 @@ private:
 
     void addCommandsWithoutSave(const Commands &commands, int targetRow);
     Commands selectedCommands() const;
-    QString serializeSelectedCommands();
+    QString serializeSelectedCommands() const;
     bool hasUnsavedChanges() const;
 
     void updateIcon(int row);
 
-    QString commandsToPaste();
+    QString commandsToPaste() const;
 
     Ui::CommandDialog *ui;
     Commands m_savedCommands;
@@ -80,5 +80,3 @@ private:
     Commands m_pluginCommands;
     QStringList m_formats;
 };
-
-#endif // COMMANDDIALOG_H

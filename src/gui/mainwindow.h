@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#pragma once
+
 
 #include "common/clipboardmode.h"
 #include "common/command.h"
+#include "common/navigationstyle.h"
 #include "gui/clipboardbrowsershared.h"
 #include "gui/menuitems.h"
 #include "item/persistentdisplayitem.h"
@@ -17,6 +18,7 @@
 #include <QTimer>
 #include <QtContainerFwd>
 
+enum class PasswordSource;
 class Action;
 class ActionDialog;
 class AppConfig;
@@ -33,22 +35,22 @@ class Tabs;
 class Theme;
 class TrayMenu;
 class ToolBar;
+class HiddenMenuBar;
 class QModelIndex;
-struct MainWindowOptions;
+class QSizeGrip;
 struct NotificationButton;
 
 Q_DECLARE_METATYPE(QPersistentModelIndex)
 
-#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
 using NativeEventResult = qintptr;
-#else
-Q_DECLARE_METATYPE(QList<QPersistentModelIndex>)
-using NativeEventResult = long;
-#endif
 
 namespace Ui
 {
     class MainWindow;
+}
+
+namespace Encryption {
+    class EncryptionKey;
 }
 
 enum ItemActivationCommand {
@@ -65,13 +67,19 @@ enum class ImportOptions {
     All
 };
 
+struct ImportSelection {
+    QStringList tabs;
+    QVariantMap configuration;
+    QVariantList commands;
+};
+
 struct MainWindowOptions {
     bool activateCloses() const { return itemActivationCommands & ActivateCloses; }
     bool activateFocuses() const { return itemActivationCommands & ActivateFocuses; }
     bool activatePastes() const { return itemActivationCommands & ActivatePastes; }
 
     bool confirmExit = true;
-    bool viMode = false;
+    NavigationStyle navigationStyle = NavigationStyle::Default;
     bool trayCommands = false;
     bool trayCurrentTab = false;
     QString trayTabName;
@@ -83,6 +91,7 @@ struct MainWindowOptions {
     int transparencyFocused = 0;
 
     bool hideTabs = false;
+    bool hideMenuBar = false;
 
     bool hideMainWindow = false;
     bool closeOnUnfocus = false;
@@ -113,6 +122,7 @@ struct MainWindowOptions {
 class MainWindow final : public QMainWindow
 {
     Q_OBJECT
+    Q_PROPERTY(QStringList copyqStats READ copyqStats CONSTANT)
 
 public:
     explicit MainWindow(
@@ -247,7 +257,7 @@ public:
 
     /// Used by config() command.
     QVariant config(const QVariantList &nameValue);
-    QString configDescription();
+    QString configDescription() const;
 
     QVariantMap actionData(int id) const;
     void setActionData(int id, const QVariantMap &data);
@@ -275,6 +285,7 @@ public:
     QVector<Command> automaticCommands() const { return m_automaticCommands; }
     QVector<Command> displayCommands() const { return m_displayCommands; }
     QVector<Command> scriptCommands() const { return m_scriptCommands; }
+    QStringList copyqStats() const;
 
     /** Close main window and exit the application. */
     void exit();
@@ -309,6 +320,9 @@ public:
 
     /** Open preferences dialog. */
     void openPreferences();
+
+    /** Show the menu bar (also when hidden by the option) and activate its first menu. */
+    void showMenuBar();
 
     /** Open commands dialog. */
     void openCommands();
@@ -359,12 +373,19 @@ public:
     void setClipboard(const QVariantMap &data);
     void setClipboard(const QVariantMap &data, ClipboardMode mode);
     void setClipboardAndSelection(const QVariantMap &data);
+    bool registerClipboardProviderAction(int actionId, ClipboardMode mode);
     void moveToClipboard(ClipboardBrowser *c, int row);
 
     const QMimeData *getClipboardData(ClipboardMode mode);
 
     /** Show/hide main window. Return true only if window is shown. */
     bool toggleVisible();
+
+    /**
+     * Like toggleVisible() but hide window if visible and not focused, which
+     * seems more reasonable when using mouse.
+     */
+    void toggleVisibleFromTray();
 
     /** Set icon for current tab or tab group. */
     void setTabIcon();
@@ -414,6 +435,8 @@ public:
     void setScriptOverrides(const QVector<int> &overrides, int actionId);
     bool isScriptOverridden(int id) const;
 
+    QVariant callPlugin(const QVariantList &arguments);
+
 signals:
     /** Request clipboard change. */
     void changeClipboard(const QVariantMap &data, ClipboardMode mode);
@@ -430,10 +453,18 @@ signals:
 
     void sendActionData(int actionId, const QByteArray &bytes);
 
+    void stopAction(int actionId);
+
+    void clipboardTabChanged();
+
 protected:
+    bool eventFilter(QObject *object, QEvent *ev) override;
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
     bool event(QEvent *event) override;
+
+    /** Move frameless window by dragging its empty area. */
+    void mousePressEvent(QMouseEvent *event) override;
 
     /** Hide (minimize to tray) window on close. */
     void closeEvent(QCloseEvent *event) override;
@@ -456,6 +487,8 @@ private:
     void saveTabPositions();
     void onSaveTabPositionsTimer();
     void doSaveTabPositions(AppConfig *appConfig);
+    void updateSizeGrip(bool frameless);
+    void placeSizeGrip();
     void tabsMoved(const QString &oldPrefix, const QString &newPrefix);
     void tabBarMenuRequested(QPoint pos, int tab);
     void tabTreeMenuRequested(QPoint pos, const QString &groupPath);
@@ -486,7 +519,7 @@ private:
     void onItemCommandActionTriggered(CommandAction *commandAction, const QString &triggeredShortcut);
     void onClipboardCommandActionTriggered(CommandAction *commandAction, const QString &triggeredShortcut);
 
-    void onTabWidgetDropItems(const QString &tabName, const QMimeData *data);
+    void onTabWidgetDropItems(const QString &tabName, const QMimeData *data, bool *accepted);
 
     void showContextMenuAt(QPoint position);
 
@@ -498,6 +531,7 @@ private:
     void moveToBottom();
 
     void onBrowserCreated(ClipboardBrowser *browser);
+    void onBrowserLoaded(ClipboardBrowser *browser);
     void onBrowserDestroyed(ClipboardBrowserPlaceholder *placeholder);
 
     void onItemSelectionChanged(const ClipboardBrowser *browser);
@@ -518,6 +552,7 @@ private:
     void disableHideWindowOnUnfocus();
     void enableHideWindowOnUnfocus();
     void hideWindowIfNotActive();
+    void hideWindowOnUnfocus(int intervalMsec);
 
     template <typename SlotReturnType>
     using MainWindowActionSlot = SlotReturnType (MainWindow::*)();
@@ -585,8 +620,6 @@ private:
 
     QAction *addTrayAction(Actions::Id id);
 
-    void updateTabIcon(const QString &newName, const QString &oldName);
-
     template <typename Receiver, typename ReturnType>
     QAction *addItemAction(Actions::Id id, Receiver *receiver, ReturnType (Receiver::* slot)());
 
@@ -598,7 +631,7 @@ private:
     void interruptMenuCommandFilters(MenuMatchCommands *menuMatchCommands);
     void stopMenuCommandFilters(MenuMatchCommands *menuMatchCommands);
 
-    void terminateAction(int *actionId);
+    bool abortAction(int &actionId, int waitMs = 0, int terminateAfterMs = 5000, int killAfterMs = 5000);
 
     bool isItemMenuDefaultActionValid() const;
 
@@ -621,10 +654,22 @@ private:
     bool toggleMenu(TrayMenu *menu, QPoint pos);
     bool toggleMenu(TrayMenu *menu);
 
-    bool exportDataFrom(const QString &fileName, const QStringList &tabs, bool exportConfiguration, bool exportCommands);
+    bool exportDataFrom(const QString &fileName, const QStringList &tabs, bool exportConfiguration, bool exportCommands, const Encryption::EncryptionKey &encryptionKey);
     bool exportDataV4(QDataStream *out, const QStringList &tabs, bool exportConfiguration, bool exportCommands);
+    bool exportDataV5(QDataStream *out, const QStringList &tabs, bool exportConfiguration, bool exportCommands, const Encryption::EncryptionKey &encryptionKey);
+    QVariantMap exportTabData(const QString &tab, const Tabs &tabProps, bool *ok);
+
+    bool canImport(const ImportSelection &importSelection);
+    void importSelected(const ImportSelection &importSelection);
+    bool importDataV2(QDataStream *in);
     bool importDataV3(QDataStream *in, ImportOptions options);
     bool importDataV4(QDataStream *in, ImportOptions options);
+    bool importDataV5(QDataStream *in, ImportOptions options);
+    bool importTabData(
+        const QString &requestedTabName,
+        const QVariantMap &tabMap,
+        const Tabs &tabProps,
+        const Encryption::EncryptionKey &key);
 
     const Theme &theme() const;
 
@@ -637,6 +682,21 @@ private:
     void onItemClicked();
     void onItemDoubleClicked();
 
+    void promptForEncryptionPasswordIfNeeded(AppConfig *appConfig);
+    void reencryptTabsIfNeeded(AppConfig *appConfig);
+    void reencryptTabsIfNeededHelper(AppConfig *appConfig);
+
+    /**
+     * Update tab name in placeholder and configuration.
+     * Return true on success, false if setting tab name in placeholder failed
+     * (most likely failure to move the tab data).
+     */
+    bool updateTabName(
+        ClipboardBrowserPlaceholder *placeholder,
+        const QString &newName,
+        AppConfig *appConfig,
+        Tabs *tabs);
+
     ConfigurationManager *cm;
     Ui::MainWindow *ui;
 
@@ -647,11 +707,17 @@ private:
 
     ToolBar *m_toolBar;
 
+    QSizeGrip *m_sizeGrip = nullptr;
+    HiddenMenuBar *m_hiddenMenuBar = nullptr;
+    QList<QAction*> m_menuBarStandIns;
+
     MainWindowOptions m_options;
 
     bool m_clipboardStoringDisabled = false;
 
     ClipboardBrowserSharedPtr m_sharedData;
+    bool m_wasEncrypted = false;
+    bool m_reencrypting = false;
 
     QVector<Command> m_automaticCommands;
     QVector<Command> m_displayCommands;
@@ -703,6 +769,9 @@ private:
     QVector<int> m_overrides;
     int m_maxEventHandlerScripts = 10;
     QPointer<Action> m_actionCollectOverrides;
-};
 
-#endif // MAINWINDOW_H
+    int m_provideClipboardActionId = -1;
+    int m_provideSelectionActionId = -1;
+
+    bool m_usedKeyStore = false;
+};

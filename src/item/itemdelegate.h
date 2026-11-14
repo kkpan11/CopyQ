@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef ITEMDELEGATE_H
-#define ITEMDELEGATE_H
+#pragma once
 
-#include "item/itemfilter.h"
+
 #include "gui/clipboardbrowsershared.h"
+#include "item/persistentdisplayitem.h"
 
 #include <QItemDelegate>
-#include <QRegularExpression>
 #include <QTimer>
 
 #include <memory>
 #include <vector>
 
+class ClipboardBrowser;
 class Item;
 class ItemEditorWidget;
 class ItemFactory;
+class ItemFilter;
 class ItemWidget;
-class ClipboardBrowser;
-class PersistentDisplayItem;
+using ItemFilterPtr = std::shared_ptr<ItemFilter>;
 
 constexpr int defaultItemHeight = 100;
 
@@ -69,8 +69,8 @@ class ItemDelegate final : public QItemDelegate
         void setItemSizes(int maxWidth, int idealWidth);
 
         /** Create internal item editor widget. */
-        ItemEditorWidget *createCustomEditor(QWidget *parent, const QModelIndex &index,
-                                             bool editNotes);
+        ItemEditorWidget *createCustomEditor(
+                QWidget *parent, const QModelIndex &index, const QString &format);
 
         /**
          * Highlight matched text with current search expression, font and color.
@@ -120,12 +120,14 @@ class ItemDelegate final : public QItemDelegate
         struct Item {
             ItemWidget *operator->() const noexcept { return item.get(); }
             ItemWidget *get() const noexcept { return item.get(); }
-            operator bool() const noexcept { return static_cast<bool>(item); }
+            explicit operator bool() const noexcept { return static_cast<bool>(item); }
 
             std::shared_ptr<ItemWidget> item;
             int appliedFilterId = 0;
             QSize size = QSize(0, defaultItemHeight);
         };
+
+        QWidget *createPreviewNoEmit(const QVariantMap &data, QWidget *parent);
 
         void setIndexWidget(const QModelIndex &index, ItemWidget *w);
 
@@ -149,10 +151,9 @@ class ItemDelegate final : public QItemDelegate
         int m_filterId = 0;
         int m_maxWidth;
         int m_idealWidth;
+        int m_fontHeight;
 
         QTimer m_timerInvalidateHidden;
 
         std::vector<Item> m_items;
 };
-
-#endif // ITEMDELEGATE_H

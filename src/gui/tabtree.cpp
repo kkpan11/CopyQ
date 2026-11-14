@@ -4,7 +4,6 @@
 
 #include "common/common.h"
 #include "common/display.h"
-#include "common/mimetypes.h"
 #include "common/timer.h"
 #include "gui/iconfactory.h"
 #include "gui/iconfont.h"
@@ -117,7 +116,7 @@ QTreeWidgetItem *findLastTreeItem(const QTreeWidget &tree, QStringList *pathComp
 
 QTreeWidgetItem *dropItemsTarget(const QDropEvent &event, const QTreeWidget &parent)
 {
-    return canDropToTab(event) ? parent.itemAt( event.pos() ) : nullptr;
+    return canDropToTab(event) ? parent.itemAt( event.position().toPoint() ) : nullptr;
 }
 
 int itemLabelPadding()
@@ -127,7 +126,7 @@ int itemLabelPadding()
 
 QLabel *createLabel(const QString &objectName, QWidget *parent)
 {
-    QLabel *label = new QLabel(parent);
+    auto *label = new QLabel(parent);
     const int p = itemLabelPadding();
     label->setContentsMargins({p,p,p,p});
     label->setObjectName(objectName);
@@ -150,6 +149,7 @@ public:
         m_layout->addWidget(m_label);
         m_layout->setContentsMargins({});
         m_layout->addStretch(1);
+        m_layout->setSizeConstraint(QLayout::SetMinimumSize);
 
         updateFromItem(item);
     }
@@ -223,7 +223,7 @@ void labelItem(QTreeWidgetItem *item)
     QTreeWidget *parent = item->treeWidget();
     label = new ItemLabel(item);
     label->installEventFilter(parent);
-    item->setTextAlignment(0, Qt::AlignCenter);
+    item->setTextAlignment(0, Qt::AlignLeft);
     parent->setItemWidget(item, 0, label);
 
     setItemWidgetSelected(item);
@@ -255,6 +255,8 @@ TabTree::TabTree(QWidget *parent)
     const int x = smallIconSize();
     setIconSize(QSize(x, x));
 
+    setRootIsDecorated(false);
+
     setMinimumHeight(fontMetrics().lineSpacing() * 3);
     verticalScrollBar()->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Ignored);
 
@@ -283,39 +285,46 @@ QString TabTree::tabName(int tabIndex) const
 
 void TabTree::setTabName(int tabIndex, const QString &tabName)
 {
-    QTreeWidgetItem *item = findTreeItem(tabIndex);
-    Q_ASSERT(item);
+    QTreeWidgetItem *oldItem = findTreeItem(tabIndex);
+    Q_ASSERT(oldItem);
 
-    if (getTabPath(item) == tabName)
+    if (getTabPath(oldItem) == tabName)
         return;
 
-    const QString itemCount = item->data(0, DataItemCount).toString();
+    const QString itemCount = oldItem->data(0, DataItemCount).toString();
     insertTab(tabIndex, tabName);
-    if (item == currentItem())
+    if (oldItem == currentItem())
         setCurrentTab(tabIndex);
 
     // Remove old item if it's an empty group.
-    m_tabs.removeOne(item);
-    if ( isEmptyTabGroup(item) )
-        deleteItem(item);
+    m_tabs.removeOne(oldItem);
+    if ( isEmptyTabGroup(oldItem) ) {
+        deleteItem(oldItem);
+    } else {
+        // Remove item counter from non-tab group.
+        setTabItemCount(oldItem, QString());
+    }
 
-    item = findTreeItem(tabIndex);
-    Q_ASSERT(item);
-    Q_ASSERT(getTabPath(item) == tabName);
+    QTreeWidgetItem *newItem = findTreeItem(tabIndex);
+    Q_ASSERT(newItem);
+    Q_ASSERT(getTabPath(newItem) == tabName);
 
     if ( !itemCount.isEmpty() )
-        setTabItemCount(tabName, itemCount);
+        setTabItemCount(newItem, itemCount);
 
-    updateItemSize(item);
+    updateItemSize(newItem);
     updateSize();
 }
 
 void TabTree::setTabItemCount(const QString &tabName, const QString &itemCount)
 {
     QTreeWidgetItem *item = findTreeItem(tabName);
-    if (!item)
-        return;
+    if (item)
+        setTabItemCount(item, itemCount);
+}
 
+void TabTree::setTabItemCount(QTreeWidgetItem *item, const QString &itemCount)
+{
     item->setData(0, DataItemCount, itemCount);
 
     ItemLabel *label = itemLabel(item);
@@ -413,6 +422,7 @@ void TabTree::updateCollapsedTabs(QList<QString> *tabs) const
 
 void TabTree::setCollapsedTabs(const QList<QString> &collapsedPaths)
 {
+    m_collapsedPaths = collapsedPaths;
     for (const auto &path : collapsedPaths) {
         QTreeWidgetItem *item = findTreeItem(path);
         if ( isTabGroup(item) )
@@ -466,6 +476,11 @@ void TabTree::setCurrentTab(int index)
     QTreeWidgetItem *item = findTreeItem(index);
     if (item != nullptr)
         setCurrentItem(item);
+}
+
+void TabTree::moveTab(int from, int to)
+{
+    m_tabs.move(from, to);
 }
 
 void TabTree::adjustSize()
@@ -528,6 +543,15 @@ void TabTree::contextMenuEvent(QContextMenuEvent *event)
     event->accept();
 }
 
+void TabTree::mousePressEvent(QMouseEvent *event)
+{
+    QTreeWidget::mousePressEvent(event);
+
+    // Let the main window handle clicks on the empty area (moves frameless window).
+    if ( !indexAt(event->pos()).isValid() )
+        event->ignore();
+}
+
 void TabTree::dragEnterEvent(QDragEnterEvent *event)
 {
     if ( canDropToTab(*event) ) {
@@ -543,7 +567,7 @@ void TabTree::dragMoveEvent(QDragMoveEvent *event)
 {
     if ( dropItemsTarget(*event, *this) )
         acceptDrag(event);
-    else if ( itemAt(event->pos()) )
+    else if ( itemAt(event->position().toPoint()) )
         QTreeWidget::dragMoveEvent(event);
     else
         event->ignore();
@@ -557,10 +581,19 @@ void TabTree::dropEvent(QDropEvent *event)
 
     const auto targetItem = dropItemsTarget(*event, *this);
     if (targetItem) {
-        acceptDrag(event);
-        emit dropItems( getTabPath(targetItem), event->mimeData() );
-    } else if ( itemAt(event->pos()) ) {
+        bool accepted = false;
+        emit dropItems( getTabPath(targetItem), event->mimeData(), &accepted );
+        if (accepted)
+            acceptDrag(event);
+    } else if ( itemAt(event->position().toPoint()) ) {
         const QString oldPrefix = getTabPath(current);
+
+        QSet<QTreeWidgetItem*> collapsedItems;
+        for ( QTreeWidgetItemIterator it(topLevelItem(0)); *it; ++it ) {
+            auto item = *it;
+            if ( !item->isExpanded() )
+                collapsedItems.insert(item);
+        }
 
         blockSignals(true);
         QTreeWidget::dropEvent(event);
@@ -587,11 +620,13 @@ void TabTree::dropEvent(QDropEvent *event)
 
         QList<QTreeWidgetItem*> newTabs;
         QList<int> indexes;
+        QList<QPersistentModelIndex> toDelete;
         for ( QTreeWidgetItemIterator it(topLevelItem(0)); *it; ++it ) {
             auto item = *it;
+            item->setExpanded( !collapsedItems.contains(item) );
             // Remove empty groups.
             if ( isEmptyTabGroup(item) ) {
-                deleteItem(item);
+                toDelete.append(indexFromItem(item));
             } else {
                 const int oldIndex = getTabIndex(item);
                 if (oldIndex != -1) {
@@ -601,10 +636,19 @@ void TabTree::dropEvent(QDropEvent *event)
             }
         }
 
-        m_tabs = std::move(newTabs);
-        emit tabsMoved(oldPrefix, newPrefix, indexes);
+        for (const auto &index : toDelete) {
+            if (!index.isValid())
+                continue;
+
+            QTreeWidgetItem *item = itemFromIndex(index);
+            if (item)
+                deleteItem(item);
+        }
 
         updateSize();
+
+        m_tabs = std::move(newTabs);
+        emit tabsMoved(oldPrefix, newPrefix, indexes);
     } else {
         event->ignore();
     }
@@ -612,9 +656,9 @@ void TabTree::dropEvent(QDropEvent *event)
 
 bool TabTree::eventFilter(QObject *obj, QEvent *event)
 {
-    if ( obj == verticalScrollBar() ) {
-        if ( event->type() == QEvent::Show || event->type() == QEvent::Hide )
-            updateSize();
+    if ( obj == verticalScrollBar()
+         && (event->type() == QEvent::Show || event->type() == QEvent::Hide) ) {
+        updateSize();
     }
 
     return QTreeWidget::eventFilter(obj, event);
@@ -645,6 +689,16 @@ void TabTree::rowsInserted(const QModelIndex &parent, int start, int end)
 void TabTree::showEvent(QShowEvent *event)
 {
     QTreeWidget::showEvent(event);
+
+    // Re-apply collapsed state after the first layout. QTreeWidget may
+    // auto-expand items during deferred layout before the widget is shown.
+    for (const auto &path : m_collapsedPaths) {
+        QTreeWidgetItem *item = findTreeItem(path);
+        if ( isTabGroup(item) )
+            item->setExpanded(false);
+    }
+    m_collapsedPaths.clear();
+
     updateSize();
 }
 
@@ -674,8 +728,6 @@ void TabTree::doUpdateSize()
 
     resizeColumnToContents(0);
     w += sizeHintForColumn(0);
-    resizeColumnToContents(1);
-    w += sizeHintForColumn(1);
 
     setFixedWidth(w);
 }

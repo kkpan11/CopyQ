@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef TABSWIDGETINTERFACE_H
-#define TABSWIDGETINTERFACE_H
+#pragma once
+
 
 #include <QtContainerFwd>
 
@@ -43,11 +43,10 @@ public:
     virtual void previousTab() = 0;
 
     virtual void setCurrentTab(int index) = 0;
+    virtual void moveTab(int from, int to) = 0;
 
     virtual void adjustSize() = 0;
 
     TabsWidgetInterface(const TabsWidgetInterface &) = delete;
     TabsWidgetInterface &operator=(const TabsWidgetInterface &) = delete;
 };
-
-#endif // TABSWIDGETINTERFACE_H

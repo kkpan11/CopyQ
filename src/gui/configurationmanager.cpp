@@ -17,10 +17,13 @@
 #include "common/mimetypes.h"
 #include "common/option.h"
 #include "common/settings.h"
+#include "gui/clipboardbrowsershared.h"
 #include "gui/configtabappearance.h"
 #include "gui/configtabtabs.h"
+#include "gui/encryptionpassword.h"
 #include "gui/iconfactory.h"
 #include "gui/icons.h"
+#include "gui/passwordprompt.h"
 #include "gui/pluginwidget.h"
 #include "gui/shortcutswidget.h"
 #include "gui/tabicons.h"
@@ -110,10 +113,10 @@ QString nativeLanguageName(const QString &localeName)
 
 } // namespace
 
-ConfigurationManager::ConfigurationManager(ItemFactory *itemFactory, QWidget *parent)
+ConfigurationManager::ConfigurationManager(const ClipboardBrowserSharedPtr &sharedData, QWidget *parent)
     : QDialog(parent)
     , ui(new Ui::ConfigurationManager)
-    , m_options()
+    , m_sharedData(sharedData)
 {
     ui->setupUi(this);
     initTabIcons();
@@ -122,6 +125,7 @@ ConfigurationManager::ConfigurationManager(ItemFactory *itemFactory, QWidget *pa
 
     m_tabHistory->spinBoxItems->setMaximum(Config::maxItems);
 
+    ItemFactory *itemFactory = m_sharedData ? m_sharedData->itemFactory : nullptr;
     if ( itemFactory && itemFactory->hasLoaders() )
         initPluginWidgets(itemFactory);
 
@@ -139,7 +143,6 @@ ConfigurationManager::ConfigurationManager(ItemFactory *itemFactory, QWidget *pa
 
 ConfigurationManager::ConfigurationManager()
     : ui(new Ui::ConfigurationManager)
-    , m_options()
 {
     ui->setupUi(this);
     initTabIcons();
@@ -218,15 +221,31 @@ void ConfigurationManager::initLanguages()
     m_tabGeneral->comboBoxLanguage->setSizeAdjustPolicy(QComboBox::AdjustToContents);
 }
 
-void ConfigurationManager::updateAutostart()
+void ConfigurationManager::updateOptionsVisibility()
 {
     auto platform = platformNativeInterface();
+    m_tabGeneral->checkBoxAutostart->setVisible( platform->canAutostart() );
+    m_tabGeneral->checkBoxPreventScreenCapture->setVisible(
+        platform->canPreventScreenCapture() );
 
-    if ( platform->canAutostart() ) {
-        bind<Config::autostart>(m_tabGeneral->checkBoxAutostart);
-    } else {
-        m_tabGeneral->checkBoxAutostart->hide();
-    }
+#ifdef WITH_QCA_ENCRYPTION
+    m_tabGeneral->checkBoxEncryptTabs->setVisible(true);
+    const bool passwordWasSet = m_sharedData
+        && !Encryption::loadWrappedDEK().isEmpty()
+        && !Encryption::loadKEKSalt().isEmpty();
+    m_tabGeneral->pushButtonChangeEncryptionPassword->setVisible(passwordWasSet);
+#else
+    m_tabGeneral->checkBoxEncryptTabs->setVisible(false);
+    m_tabGeneral->pushButtonChangeEncryptionPassword->setVisible(false);
+    m_tabHistory->labelEncryptedExpireSeconds->hide();
+    m_tabHistory->spinBoxExpireEncryptedTabSeconds->hide();
+#endif
+
+#ifdef WITH_KEYCHAIN
+    m_tabGeneral->checkBoxUseKeychain->setVisible(true);
+#else
+    m_tabGeneral->checkBoxUseKeychain->setVisible(false);
+#endif
 }
 
 void ConfigurationManager::setAutostartEnable(AppConfig *appConfig)
@@ -239,9 +258,13 @@ void ConfigurationManager::initOptions()
 {
     /* general options */
     bind<Config::autostart>(m_tabGeneral->checkBoxAutostart);
+    bind<Config::prevent_screen_capture>(m_tabGeneral->checkBoxPreventScreenCapture);
+    bind<Config::encrypt_tabs>(m_tabGeneral->checkBoxEncryptTabs);
+    bind<Config::use_key_store>(m_tabGeneral->checkBoxUseKeychain);
     bind<Config::clipboard_tab>(m_tabHistory->comboBoxClipboardTab->lineEdit());
     bind<Config::maxitems>(m_tabHistory->spinBoxItems);
     bind<Config::expire_tab>(m_tabHistory->spinBoxExpireTab);
+    bind<Config::expire_encrypted_tab_seconds>(m_tabHistory->spinBoxExpireEncryptedTabSeconds);
     bind<Config::editor>(m_tabHistory->lineEditEditor);
     bind<Config::item_popup_interval>(m_tabNotifications->spinBoxNotificationPopupInterval);
     bind<Config::notification_position>(m_tabNotifications->comboBoxNotificationPosition);
@@ -257,7 +280,7 @@ void ConfigurationManager::initOptions()
     bind<Config::move>(m_tabHistory->checkBoxMove);
     bind<Config::check_clipboard>(m_tabGeneral->checkBoxClip);
     bind<Config::confirm_exit>(m_tabGeneral->checkBoxConfirmExit);
-    bind<Config::vi>(m_tabGeneral->checkBoxViMode);
+    bind<Config::navigation_style>(m_tabGeneral->comboBoxNavigationStyle);
     bind<Config::save_filter_history>(m_tabGeneral->checkBoxSaveFilterHistory);
     bind<Config::autocompletion>(m_tabGeneral->checkBoxAutocompleteCommands);
     bind<Config::always_on_top>(m_tabGeneral->checkBoxAlwaysOnTop);
@@ -266,8 +289,10 @@ void ConfigurationManager::initOptions()
     bind<Config::transparency_focused>(m_tabLayout->spinBoxTransparencyFocused);
     bind<Config::transparency>(m_tabLayout->spinBoxTransparencyUnfocused);
     bind<Config::hide_tabs>(m_tabLayout->checkBoxHideTabs);
+    bind<Config::hide_menu_bar>(m_tabLayout->checkBoxHideMenuBar);
     bind<Config::hide_toolbar>(m_tabLayout->checkBoxHideToolbar);
     bind<Config::hide_toolbar_labels>(m_tabLayout->checkBoxHideToolbarLabels);
+    bind<Config::frameless_window>(m_tabLayout->checkBoxFramelessWindow);
     bind<Config::disable_tray>(m_tabTray->checkBoxDisableTray);
     bind<Config::hide_main_window>(m_tabLayout->checkBoxHideWindow);
     bind<Config::tab_tree>(m_tabLayout->checkBoxTabTree);
@@ -342,6 +367,10 @@ void ConfigurationManager::initOptions()
     bind<Config::restore_geometry>();
 
     bind<Config::close_on_unfocus_delay_ms>();
+    bind<Config::close_on_unfocus_extra_delay_ms>();
+
+    bind<Config::terminate_action_timeout_ms>();
+    bind<Config::clipboard_mime_size_limit>();
 }
 
 template <typename Config, typename Widget>
@@ -376,6 +405,11 @@ void ConfigurationManager::bind(const QString &optionKey, QComboBox *obj, int de
     m_options[optionKey] = Option(defaultValue, "currentIndex", obj);
 }
 
+void ConfigurationManager::bind(const QString &optionKey, QComboBox *obj, NavigationStyle defaultValue)
+{
+    m_options[optionKey] = Option(static_cast<int>(defaultValue), "currentIndex", obj);
+}
+
 void ConfigurationManager::bind(const QString &optionKey, const QVariant &defaultValue, const char *description)
 {
     m_options[optionKey] = Option(defaultValue, description);
@@ -392,9 +426,9 @@ QStringList ConfigurationManager::options() const
     QStringList options;
     for (auto it = m_options.constBegin(); it != m_options.constEnd(); ++it) {
         const auto &option = it.key();
-        if ( it.value().value().canConvert(QVariant::String) )
+        if ( it.value().value().canConvert<QString>() )
             options.append(option);
-        else if ( it.value().value().canConvert(QVariant::StringList) )
+        else if ( it.value().value().canConvert<QStringList>() )
             options.append(option);
     }
 
@@ -459,7 +493,7 @@ void ConfigurationManager::loadSettings(AppConfig *appConfig)
 
     updateTabComboBoxes();
 
-    updateAutostart();
+    updateOptionsVisibility();
 }
 
 void ConfigurationManager::onButtonBoxClicked(QAbstractButton* button)
@@ -515,6 +549,8 @@ void ConfigurationManager::connectSlots()
             this, &ConfigurationManager::onCheckBoxMenuTabIsCurrentStateChanged);
     connect(m_tabTray->spinBoxTrayItems, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this, &ConfigurationManager::onSpinBoxTrayItemsValueChanged);
+    connect(m_tabGeneral->pushButtonChangeEncryptionPassword, &QPushButton::clicked,
+            this, &ConfigurationManager::onPushButtonChangeEncryptionPasswordClicked);
 }
 
 void ConfigurationManager::apply(AppConfig *appConfig)
@@ -555,7 +591,7 @@ void ConfigurationManager::apply(AppConfig *appConfig)
 
         QWidget *w = m_tabItems->widget(i);
         if (w) {
-            PluginWidget *pluginWidget = qobject_cast<PluginWidget *>(w);
+            auto *pluginWidget = qobject_cast<PluginWidget *>(w);
             const auto &loader = pluginWidget->loader();
             loader->applySettings(settings);
         }
@@ -610,4 +646,23 @@ void ConfigurationManager::onCheckBoxMenuTabIsCurrentStateChanged(int state)
 void ConfigurationManager::onSpinBoxTrayItemsValueChanged(int value)
 {
     m_tabTray->checkBoxPasteMenuItem->setEnabled(value > 0);
+}
+
+void ConfigurationManager::onPushButtonChangeEncryptionPasswordClicked()
+{
+    if (!m_sharedData || !m_sharedData->passwordPrompt)
+        return;
+
+    // Always verify old password
+    QPointer<ConfigurationManager> self(this);
+    m_sharedData->passwordPrompt->prompt(
+        PasswordSource::IgnoreEnvAndKeychain,
+        [self](const Encryption::EncryptionKey &currentKey){
+            if (!self || !currentKey.isValid())
+                return;
+
+            const auto key = promptForEncryptionPasswordChange(currentKey, self);
+            if (key.isValid())
+                self->m_sharedData->encryptionKey = key;
+        });
 }

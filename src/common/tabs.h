@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef TABS_H
-#define TABS_H
+#pragma once
+
 
 #include <QString>
-#include <QStringList>
+#include <QtContainerFwd>
 
 #include <memory>
 
@@ -15,6 +15,7 @@ struct TabProperties {
     QString iconName;
     int maxItemCount = 0;
     bool storeItems = true;
+    int encryptedExpireSeconds = 0;
 };
 
 class Tabs
@@ -25,6 +26,8 @@ public:
 
     Tabs(const Tabs &other);
     Tabs &operator=(const Tabs &other);
+    Tabs(Tabs &&) noexcept = default;
+    Tabs &operator=(Tabs &&) noexcept = default;
 
     TabProperties tabProperties(const QString &name) const;
     void setTabProperties(const TabProperties &tabProperties);
@@ -35,5 +38,3 @@ private:
     struct PrivateData;
     std::unique_ptr<PrivateData> m_data;
 };
-
-#endif // TABS_H

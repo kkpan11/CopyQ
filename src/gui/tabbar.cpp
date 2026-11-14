@@ -17,7 +17,7 @@ namespace {
 
 int dropItemsTabIndex(const QDropEvent &event, const QTabBar &parent)
 {
-    return canDropToTab(event) ? parent.tabAt( event.pos() ) : -1;
+    return canDropToTab(event) ? parent.tabAt( event.position().toPoint() ) : -1;
 }
 
 int tabIndex(const QString &tabName, const TabBar &parent)
@@ -114,6 +114,12 @@ void TabBar::removeTab(int index)
     QTabBar::removeTab(index);
 }
 
+void TabBar::moveTab(int from, int to)
+{
+    const QSignalBlocker blocker(this);
+    QTabBar::moveTab(from, to);
+}
+
 void TabBar::updateTabIcons(const QHash<QString, QString> &tabIcons)
 {
     for (int i = 0; i < count(); ++i) {
@@ -184,8 +190,10 @@ void TabBar::dropEvent(QDropEvent *event)
     int tabIndex = dropItemsTabIndex(*event, *this);
 
     if ( tabIndex != -1 ) {
-        acceptDrag(event);
-        emit dropItems( tabName(tabIndex), event->mimeData() );
+        bool accepted = false;
+        emit dropItems( tabName(tabIndex), event->mimeData(), &accepted );
+        if (accepted)
+            acceptDrag(event);
     } else {
         QTabBar::dropEvent(event);
     }

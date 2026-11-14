@@ -6,26 +6,23 @@
 #include "filewatcher.h"
 
 #include "common/appconfig.h"
-#include "common/compatibility.h"
 #include "common/contenttype.h"
-#include "common/log.h"
 #include "common/mimetypes.h"
 #include "common/regexp.h"
 #include "gui/iconselectbutton.h"
 #include "gui/icons.h"
 #include "gui/iconfont.h"
 #include "gui/iconwidget.h"
+#include "gui/fromiconid.h"
 #include "item/itemfilter.h"
 
-#ifdef HAS_TESTS
-#   include "tests/itemsynctests.h"
-#endif
-
 #include <QBoxLayout>
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
 #include <QLabel>
+#include <QLoggingCategory>
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QPushButton>
@@ -39,6 +36,9 @@
 #include <memory>
 
 namespace {
+
+Q_DECLARE_LOGGING_CATEGORY(plugin)
+Q_LOGGING_CATEGORY(plugin, "copyq.plugin.itemsync")
 
 namespace syncTabsTableColumns {
 enum {
@@ -100,7 +100,7 @@ void writeConfiguration(QIODevice *file, const QStringList &savedFiles)
 
 QString iconFromId(int id)
 {
-    return id != -1 ? QString(QChar(id)) : QString();
+    return id != -1 ? fromIconId(id) : QString();
 }
 
 QPushButton *createBrowseButton()
@@ -424,9 +424,8 @@ bool ItemSyncSaver::saveItems(const QString &tabName, const QAbstractItemModel &
     QStringList savedFiles;
 
     if ( !m_watcher->isValid() ) {
-        log( tr("Failed to synchronize tab \"%1\" with directory \"%2\"!")
-             .arg(tabName, path),
-             LogError );
+        qCCritical(plugin) << tr("Failed to synchronize tab \"%1\" with directory \"%2\"!")
+             .arg(tabName, path);
         return false;
     }
 
@@ -470,9 +469,7 @@ void ItemSyncSaver::itemsRemovedByUser(const QList<QPersistentModelIndex> &index
     if ( m_tabPath.isEmpty() )
         return;
 
-    // Remove unneeded files (remaining records in the hash map).
-    for (const auto &index : indexList)
-        FileWatcher::removeFilesForRemovedIndex(m_tabPath, index);
+    FileWatcher::removeFilesForRemovedIndexes(m_tabPath, indexList);
 }
 
 QVariantMap ItemSyncSaver::copyItem(const QAbstractItemModel &, const QVariantMap &itemData)
@@ -483,7 +480,7 @@ QVariantMap ItemSyncSaver::copyItem(const QAbstractItemModel &, const QVariantMa
     QVariantMap copiedItemData;
     for (auto it = itemData.begin(); it != itemData.constEnd(); ++it) {
         const auto &format = it.key();
-        if ( !format.startsWith(mimePrivatePrefix) )
+        if ( !format.startsWith(mimePrivateSyncPrefix) )
             copiedItemData[format] = it.value();
     }
 
@@ -526,7 +523,7 @@ QString ItemSyncScriptable::getMimeBaseName() const
 
 QString ItemSyncScriptable::selectedTabPath()
 {
-    const auto tab = call("selectedTab", QVariantList()).toString();
+    const auto tab = call("selectedTab", {}).toString();
     return m_tabPaths.value(tab).toString();
 }
 
@@ -559,7 +556,7 @@ void ItemSyncLoader::applySettings(QSettings &settings)
     for (int row = 0; row < t->rowCount(); ++row) {
         FileFormat fileFormat;
         fileFormat.extensions = t->item(row, formatSettingsTableColumns::formats)->text()
-                .split( QRegularExpression("[,;\\s]"), SKIP_EMPTY_PARTS );
+                .split( QRegularExpression("[,;\\s]"), Qt::SkipEmptyParts );
         fileFormat.itemMime = t->item(row, formatSettingsTableColumns::itemMime)->text();
         if ( fileFormat.extensions.isEmpty() && fileFormat.itemMime.isEmpty() )
             continue;
@@ -617,7 +614,7 @@ void ItemSyncLoader::loadSettings(const QSettings &settings)
 QWidget *ItemSyncLoader::createSettingsWidget(QWidget *parent)
 {
     ui.reset(new Ui::ItemSyncSettings);
-    QWidget *w = new QWidget(parent);
+    auto *w = new QWidget(parent);
     ui->setupUi(w);
 
     // Init tab sync path table.
@@ -700,41 +697,6 @@ bool ItemSyncLoader::matches(const QModelIndex &index, const ItemFilter &filter)
     return filter.matches(text);
 }
 
-QObject *ItemSyncLoader::tests(const TestInterfacePtr &test) const
-{
-#ifdef HAS_TESTS
-    QStringList tabPaths;
-    for (int i = 0; i < 10; ++i) {
-        tabPaths.append(ItemSyncTests::testTab(i));
-        tabPaths.append(ItemSyncTests::testDir(i));
-    }
-
-    QVariantList formatSettings;
-    QVariantMap format;
-
-    format["formats"] = QStringList() << "xxx";
-    format["itemMime"] = QString(COPYQ_MIME_PREFIX "test-xxx");
-    format["icon"] = QString(iconFromId(IconTrash));
-    formatSettings << format;
-
-    format["formats"] = QStringList() << "zzz" << ".yyy";
-    format["itemMime"] = QString(COPYQ_MIME_PREFIX "test-zzz");
-    format["icon"] = QString();
-    formatSettings << format;
-
-    QVariantMap settings;
-    settings[configSyncTabs] = tabPaths;
-    settings[configFormatSettings] = formatSettings;
-
-    QObject *tests = new ItemSyncTests(test);
-    tests->setProperty("CopyQ_test_settings", settings);
-    return tests;
-#else
-    Q_UNUSED(test)
-    return nullptr;
-#endif
-}
-
 ItemScriptable *ItemSyncLoader::scriptableObject()
 {
     QVariantMap tabPaths;
@@ -753,7 +715,7 @@ void ItemSyncLoader::onBrowseButtonClicked()
 
     int row = 0;
     for ( ; row < t->rowCount() && t->cellWidget(row, syncTabsTableColumns::browse) != button; ++row ) {}
-    Q_ASSERT( row == t->rowCount() );
+    Q_ASSERT( row != t->rowCount() );
     if ( row == t->rowCount() )
         return;
 
@@ -767,17 +729,20 @@ void ItemSyncLoader::onBrowseButtonClicked()
 ItemSaverPtr ItemSyncLoader::loadItems(const QString &tabName, QAbstractItemModel *model, const QStringList &files, int maxItems)
 {
     const auto tabPath = m_tabPaths.value(tabName);
-    const auto path = files.isEmpty() ? tabPath : QFileInfo(files.first()).absolutePath();
-    if ( path.isEmpty() )
+    if ( tabPath.isEmpty() )
         return std::make_shared<ItemSyncSaver>(tabPath, nullptr);
 
-    QDir dir(path);
-    if ( !dir.mkpath(".") ) {
+    QDir dir(tabPath);
+    if ( !dir.mkpath(QStringLiteral(".")) ) {
         emit error( tr("Failed to create synchronization directory"));
         return nullptr;
     }
 
+    const QString parent = dir.absolutePath() + '/';
+    const bool canUseFiles = std::all_of( std::cbegin(files), std::cend(files),
+        [&](const QString &file) { return file.startsWith(parent); } );
     auto *watcher = new FileWatcher(
-        path, files, model, maxItems, m_formatSettings, m_itemDataThreshold);
+        tabPath, canUseFiles ? files : QStringList(),
+        model, maxItems, m_formatSettings, m_itemDataThreshold);
     return std::make_shared<ItemSyncSaver>(tabPath, watcher);
 }

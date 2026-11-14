@@ -1,38 +1,44 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef CONFIG_H
-#define CONFIG_H
+#pragma once
 
-class QByteArray;
-class QPoint;
 class QString;
-class QVariant;
-class QWidget;
 
 bool ensureSettingsDirectoryExists();
 
-const QString &getConfigurationFilePath();
+const QString &configurationFilePath();
 
-QString getConfigurationFilePath(const char *suffix);
+QString configurationFilePath(const char *suffix);
 
 const QString &settingsDirectoryPath();
 
-QVariant geometryOptionValue(const QString &optionName);
-void setGeometryOptionValue(const QString &optionName, const QVariant &value);
+QString itemDataPath();
 
-void restoreWindowGeometry(QWidget *w, bool openOnCurrentScreen);
+QString tabDataFileBasePath();
 
-void saveWindowGeometry(QWidget *w, bool openOnCurrentScreen);
+QString statePath();
 
-QByteArray mainWindowState(const QString &mainWindowObjectName);
+QString stateFilePath(const char *suffix);
 
-void saveMainWindowState(const QString &mainWindowObjectName, const QByteArray &state);
+bool ensureStateDirectoryExists();
 
-void moveToCurrentWorkspace(QWidget *w);
+/**
+ * Returns the path to launch CopyQ from outside the current process.
+ *
+ * Inside an AppImage, the running binary lives on a temporary FUSE mount
+ * (e.g. /tmp/.mount_CopyQXXXXXX/usr/bin/copyq) that disappears when the
+ * AppImage exits. Callers that persist the path -- the $COPYQ env var
+ * exported to user scripts, and the Exec= line in the autostart desktop
+ * file -- need the stable AppImage file path ($APPIMAGE) instead.
+ *
+ * When $APPIMAGE is unset (non-AppImage build or env var not propagated),
+ * falls back to QCoreApplication::applicationFilePath().
+ */
+QString applicationLaunchPath();
 
-void moveWindowOnScreen(QWidget *w, QPoint pos);
-
-void setGeometryGuardBlockedUntilHidden(QWidget *w, bool blocked);
-bool isGeometryGuardBlockedUntilHidden(const QWidget *w);
-
-#endif // CONFIG_H
+/**
+ * Adjusts a compile-time install path for the runtime environment.
+ * With AppImage support, prepends $APPDIR so bundled resources are found.
+ * Without AppImage support, returns the path unchanged.
+ */
+QString adjustedInstallPath(const QString &compiledPath);

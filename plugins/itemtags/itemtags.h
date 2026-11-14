@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef ITEMTAGS_H
-#define ITEMTAGS_H
+#pragma once
+
 
 #include "gui/icons.h"
 #include "item/itemwidgetwrapper.h"
@@ -24,7 +24,7 @@ class ItemTags final : public QWidget, public ItemWidgetWrapper
 public:
     struct Tag {
         QString name;
-        QString color;
+        QColor color;
         QString icon;
         QString styleSheet;
         QString match;
@@ -127,8 +127,6 @@ public:
 
     bool matches(const QModelIndex &index, const ItemFilter &filter) const override;
 
-    QObject *tests(const TestInterfacePtr &test) const override;
-
     const QObject *signaler() const override { return this; }
 
     ItemScriptable *scriptableObject() override;
@@ -159,5 +157,3 @@ private:
 
     bool m_blockDataChange;
 };
-
-#endif // ITEMTAGS_H

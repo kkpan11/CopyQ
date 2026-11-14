@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef TABPROPERTIESWIDGET_H
-#define TABPROPERTIESWIDGET_H
+#pragma once
+
 
 #include <QWidget>
 
@@ -21,14 +21,14 @@ public:
     void setIconName(const QString &iconName);
     void setMaxItemCount(int maxItemCount);
     void setStoreItems(bool storeItems);
+    void setEncryptedExpireSeconds(int seconds);
 
 signals:
     void iconNameChanged(const QString &iconName);
     void maxItemCountChanged(int maxItemCount);
     void storeItemsChanged(bool storeItems);
+    void encryptedExpireSecondsChanged(int seconds);
 
 private:
     Ui::TabPropertiesWidget *ui;
 };
-
-#endif // TABPROPERTIESWIDGET_H

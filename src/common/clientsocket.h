@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef CLIENTSOCKET_H
-#define CLIENTSOCKET_H
+#pragma once
+
 
 #include <QLocalSocket>
 #include <QObject>
@@ -17,8 +17,8 @@ public:
 
     QLocalSocket *get() const { return m_socket; }
     QLocalSocket *operator->() const { return m_socket; }
-    operator QLocalSocket*() { return m_socket; }
-    operator bool() { return !m_socket.isNull(); }
+    explicit operator QLocalSocket*() const { return m_socket; }
+    explicit operator bool() const { return !m_socket.isNull(); }
 
     LocalSocketGuard(const LocalSocketGuard &) = delete;
     LocalSocketGuard &operator=(const LocalSocketGuard &) = delete;
@@ -73,5 +73,3 @@ private:
     quint32 m_messageLength = 0;
     QByteArray m_message;
 };
-
-#endif // CLIENTSOCKET_H

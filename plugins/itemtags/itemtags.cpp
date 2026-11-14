@@ -4,18 +4,14 @@
 #include "ui_itemtagssettings.h"
 
 #include "common/command.h"
-#include "common/compatibility.h"
 #include "common/contenttype.h"
 #include "common/regexp.h"
 #include "common/textdata.h"
 #include "gui/iconfont.h"
 #include "gui/iconselectbutton.h"
+#include "gui/fromiconid.h"
 #include "gui/pixelratio.h"
 #include "item/itemfilter.h"
-
-#ifdef HAS_TESTS
-#   include "tests/itemtagstests.h"
-#endif
 
 #include <QBoxLayout>
 #include <QColorDialog>
@@ -52,22 +48,46 @@ enum {
 };
 }
 
+// https://wiki.qt.io/Elided_Label
 class ElidedLabel final : public QLabel
 {
 public:
-    explicit ElidedLabel(const QString &text, QWidget *parent = nullptr)
-        : QLabel(text, parent)
-    {
-    }
+    using QLabel::QLabel;
 
 protected:
-    void paintEvent(QPaintEvent *) override
+    void resizeEvent(QResizeEvent *e)
     {
-        QPainter p(this);
-        QFontMetrics fm = fontMetrics();
-        const QString elidedText = fm.elidedText(text(), Qt::ElideMiddle, rect().width());
-        p.drawText(rect(), Qt::AlignCenter, elidedText);
+        QLabel::resizeEvent(e);
+        m_cachedText.clear();
     }
+
+    void paintEvent(QPaintEvent *e)
+    {
+        updateCachedTexts();
+        QLabel::setText(m_cachedElidedText);
+        QLabel::paintEvent(e);
+        QLabel::setText(m_cachedText);
+    }
+
+    private:
+        void updateCachedTexts()
+        {
+            const auto txt = text();
+            if (m_cachedText == txt)
+                return;
+            m_cachedText = txt;
+            const QFontMetrics fm(fontMetrics());
+            m_cachedElidedText = fm.elidedText(
+                text(), Qt::ElideMiddle, width(), Qt::TextShowMnemonic);
+            if (!m_cachedText.isEmpty()) {
+                const QString showFirstCharacter = m_cachedText.at(0) + QStringLiteral("...");
+                setMinimumWidth(fm.horizontalAdvance(showFirstCharacter) + 1);
+            }
+        }
+
+private:
+    QString m_cachedElidedText;
+    QString m_cachedText;
 };
 
 bool isTagValid(const ItemTags::Tag &tag)
@@ -80,6 +100,9 @@ bool isTagValid(const ItemTags::Tag &tag)
 
 QString serializeColor(const QColor &color)
 {
+    if (!color.isValid())
+        return {};
+
     if (color.alpha() == 255)
         return color.name();
 
@@ -88,21 +111,6 @@ QString serializeColor(const QColor &color)
             .arg(color.green())
             .arg(color.blue())
             .arg(color.alpha());
-}
-
-QColor deserializeColor(const QString &colorName)
-{
-    if ( colorName.startsWith("rgba(") ) {
-        QStringList list = colorName.mid(5, colorName.indexOf(')') - 5).split(',');
-        int r = list.value(0).toInt();
-        int g = list.value(1).toInt();
-        int b = list.value(2).toInt();
-        int a = list.value(3).toInt();
-
-        return QColor(r, g, b, a);
-    }
-
-    return QColor(colorName);
 }
 
 void setColorIcon(QPushButton *button, const QColor &color)
@@ -126,8 +134,7 @@ QVariant cellWidgetProperty(QTableWidget *table, int row, int column, const char
 
 QStringList tags(const QVariant &tags)
 {
-    return getTextData( tags.toByteArray() )
-            .split(',', SKIP_EMPTY_PARTS);
+    return getTextData( tags.toByteArray() ).split(',', Qt::SkipEmptyParts);
 }
 
 QStringList tags(const QVariantMap &itemData)
@@ -153,7 +160,7 @@ QString removeTagText()
 Command dummyTagCommand()
 {
     Command c;
-    c.icon = QString(QChar(IconTag));
+    c.icon = fromIconId(IconTag);
     c.inMenu = true;
     return c;
 }
@@ -168,16 +175,10 @@ void addTagCommands(const QString &tagName, const QString &match, QVector<Comman
 
     c = dummyTagCommand();
     c.internalId = QStringLiteral("copyq_tags_tag:") + name;
-    c.name = ItemTagsLoader::tr("Tag as %1").arg(quotedTag);
-    c.matchCmd = "copyq: plugins.itemtags.hasTag(" + tagString + ") && fail()";
-    c.cmd = "copyq: plugins.itemtags.tag(" + tagString + ")";
-    commands->append(c);
-
-    c = dummyTagCommand();
-    c.internalId = QStringLiteral("copyq_tags_untag:") + name;
-    c.name = ItemTagsLoader::tr("Remove tag %1").arg(quotedTag);
-    c.matchCmd = "copyq: plugins.itemtags.hasTag(" + tagString + ") || fail()";
-    c.cmd = "copyq: plugins.itemtags.untag(" + tagString + ")";
+    c.name = ItemTagsLoader::tr("Toggle Tag %1").arg(quotedTag);
+    c.cmd = QStringLiteral(
+        "copyq: (plugins.itemtags.hasTag(%1) ? plugins.itemtags.untag : plugins.itemtags.tag)(%1)"
+    ).arg(tagString);
     commands->append(c);
 }
 
@@ -193,18 +194,18 @@ QString unescapeTagField(const QString &field)
 
 void initTagWidget(QWidget *tagWidget, const ItemTags::Tag &tag, const QFont &font)
 {
+    tagWidget->setObjectName("tagWidget");
     tagWidget->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
-    tagWidget->setStyleSheet(
-                "* {"
-                ";background:transparent"
-                ";color:" + serializeColor(tag.color) +
-                ";" + tag.styleSheet +
-                "}"
-                "QLabel {"
-                ";background:transparent"
-                ";border:none"
-                "}"
-            );
+    const QColor color = tag.color.isValid() ? tag.color : tagWidget->palette().color(QPalette::PlaceholderText);
+    const QString styleSheet = QStringLiteral(
+        "* {"
+        ";border:none"
+        ";background:transparent"
+        ";color: %1"
+        ";%2"
+        "}"
+    ).arg(serializeColor(color), tag.styleSheet);
+    tagWidget->setStyleSheet(styleSheet);
 
     auto layout = new QHBoxLayout(tagWidget);
     const int x = QFontMetrics(font).height() / 6;
@@ -212,12 +213,12 @@ void initTagWidget(QWidget *tagWidget, const ItemTags::Tag &tag, const QFont &fo
     layout->setSpacing(x * 2);
 
     if (tag.icon.size() > 1) {
-        QLabel *iconLabel = new QLabel(tagWidget);
+        auto *iconLabel = new QLabel(tagWidget);
         const QPixmap icon(tag.icon);
         iconLabel->setPixmap(icon);
         layout->addWidget(iconLabel);
     } else if (tag.icon.size() == 1) {
-        QLabel *iconLabel = new QLabel(tagWidget);
+        auto *iconLabel = new QLabel(tagWidget);
         iconLabel->setFont(iconFont());
         iconLabel->setText(tag.icon);
         layout->addWidget(iconLabel);
@@ -252,7 +253,7 @@ void addTagButtons(QBoxLayout *layout, const ItemTags::Tags &tags)
         if ( tag.name.isEmpty() && tag.icon.isEmpty() )
             continue;
 
-        QWidget *tagWidget = new QWidget(layout->parentWidget());
+        auto *tagWidget = new QWidget(layout->parentWidget());
         initTagWidget(tagWidget, tag, font);
         layout->addWidget(tagWidget);
     }
@@ -409,7 +410,7 @@ void ItemTagsScriptable::tag()
     }
 
     if ( args.size() <= 1 ) {
-        const auto dataValueList = call("selectedItemsData").toList();
+        const auto dataValueList = call("selectedItemsData", {}).toList();
 
         QVariantList dataList;
         dataList.reserve( dataValueList.size() );
@@ -421,7 +422,7 @@ void ItemTagsScriptable::tag()
             dataList.append(itemData);
         }
 
-        call( "setSelectedItemsData", QVariantList() << QVariant(dataList) );
+        call("setSelectedItemsData", {QVariant(dataList)});
     } else {
         for ( int row : rows(args, 1) ) {
             auto itemTags = tags(row);
@@ -437,7 +438,7 @@ void ItemTagsScriptable::untag()
     auto tagName = args.value(0).toString();
 
     if ( args.size() <= 1 ) {
-        const auto dataValueList = call("selectedItemsData").toList();
+        const auto dataValueList = call("selectedItemsData", {}).toList();
 
         if ( tagName.isEmpty() ) {
             QStringList allTags;
@@ -461,7 +462,7 @@ void ItemTagsScriptable::untag()
             dataList.append(itemData);
         }
 
-        call( "setSelectedItemsData", QVariantList() << QVariant(dataList) );
+        call("setSelectedItemsData", {QVariant(dataList)});
     } else {
         const auto rows = this->rows(args, 1);
 
@@ -488,7 +489,7 @@ void ItemTagsScriptable::clearTags()
     const auto args = currentArguments();
 
     if ( args.isEmpty() ) {
-        const auto dataValueList = call("selectedItemsData").toList();
+        const auto dataValueList = call("selectedItemsData", {}).toList();
 
         QVariantList dataList;
         for (const auto &itemDataValue : dataValueList) {
@@ -497,7 +498,7 @@ void ItemTagsScriptable::clearTags()
             dataList.append(itemData);
         }
 
-        call( "setSelectedItemsData", QVariantList() << QVariant(dataList) );
+        call("setSelectedItemsData", {QVariant(dataList)});
     } else {
         const auto rows = this->rows(args, 0);
         for (int row : rows)
@@ -511,7 +512,7 @@ bool ItemTagsScriptable::hasTag()
     const auto tagName = args.value(0).toString();
 
     if ( args.size() <= 1 ) {
-        const auto dataValueList = call("selectedItemsData").toList();
+        const auto dataValueList = call("selectedItemsData", {}).toList();
         for (const auto &itemDataValue : dataValueList) {
             const auto itemData = itemDataValue.toMap();
             const auto itemTags = ::tags(itemData);
@@ -527,10 +528,7 @@ bool ItemTagsScriptable::hasTag()
 
 QString ItemTagsScriptable::askTagName(const QString &dialogTitle, const QStringList &tags)
 {
-    const auto value = call( "dialog", QVariantList()
-          << ".title" << dialogTitle
-          << dialogTitle << tags );
-
+    const auto value = call("dialog", {".title", dialogTitle, dialogTitle, tags});
     return value.toString();
 }
 
@@ -561,14 +559,14 @@ QList<int> ItemTagsScriptable::rows(const QVariantList &arguments, int skip)
 
 QStringList ItemTagsScriptable::tags(int row)
 {
-    const auto value = call("read", QVariantList() << mimeTags << row);
+    const auto value = call("read", {mimeTags, row});
     return ::tags(value);
 }
 
 void ItemTagsScriptable::setTags(int row, const QStringList &tags)
 {
     const auto value = tags.join(",");
-    call("change", QVariantList() << row << mimeTags << value);
+    call("change", {row, mimeTags, value});
 }
 
 bool ItemTagsScriptable::addTag(const QString &tagName, QStringList *tags)
@@ -662,7 +660,7 @@ void ItemTagsLoader::loadSettings(const QSettings &settings)
 QWidget *ItemTagsLoader::createSettingsWidget(QWidget *parent)
 {
     ui.reset(new Ui::ItemTagsSettings);
-    QWidget *w = new QWidget(parent);
+    auto *w = new QWidget(parent);
     ui->setupUi(w);
 
     // Init tag table.
@@ -712,29 +710,6 @@ bool ItemTagsLoader::matches(const QModelIndex &index, const ItemFilter &filter)
     return filter.matches(tags) || filter.matches(accentsRemoved(tags));
 }
 
-QObject *ItemTagsLoader::tests(const TestInterfacePtr &test) const
-{
-#ifdef HAS_TESTS
-    QStringList tags;
-
-    for (const auto &tagName : ItemTagsTests::testTags()) {
-        Tag tag;
-        tag.name = tagName;
-        tags.append(serializeTag(tag));
-    }
-
-    QVariantMap settings;
-    settings[configTags] = tags;
-
-    QObject *tests = new ItemTagsTests(test);
-    tests->setProperty("CopyQ_test_settings", settings);
-    return tests;
-#else
-    Q_UNUSED(test)
-    return nullptr;
-#endif
-}
-
 ItemScriptable *ItemTagsLoader::scriptableObject()
 {
     return new ItemTagsScriptable(userTags());
@@ -747,8 +722,14 @@ QVector<Command> ItemTagsLoader::commands() const
     if (m_tags.isEmpty()) {
         addTagCommands(tr("Important", "Tag name for example command"), QString(), &commands);
     } else {
-        for (const auto &tag : m_tags)
+        const QRegularExpression reCapture(R"(\(.*\))");
+        const QRegularExpression reGroup(R"(\\\d)");
+        for (const auto &tag : m_tags) {
+            if ( reCapture.match(tag.match).hasMatch() && reGroup.match(tag.name).hasMatch() )
+                continue;
+
             addTagCommands(tag.name, tag.match, &commands);
+        }
     }
 
     Command c;
@@ -789,7 +770,7 @@ QStringList ItemTagsLoader::userTags() const
 
 void ItemTagsLoader::onColorButtonClicked()
 {
-    QPushButton *button = qobject_cast<QPushButton*>(sender());
+    auto *button = qobject_cast<QPushButton*>(sender());
     Q_ASSERT(button);
 
     const QColor color = button->property(propertyColor).value<QColor>();
@@ -813,7 +794,7 @@ void ItemTagsLoader::onTableWidgetItemChanged(QTableWidgetItem *item)
 
     const int row = item->row();
     QTableWidgetItem *tagItem = ui->tableWidget->item(row, tagsTableColumns::name);
-    const QVariant value = QVariant::fromValue(tagFromTable(row));
+    const auto value = QVariant::fromValue(tagFromTable(row));
     tagItem->setData(TagTableWidgetItem::TagRole, value);
 
     m_blockDataChange = false;
@@ -828,7 +809,7 @@ void ItemTagsLoader::onAllTableWidgetItemsChanged()
 QString ItemTagsLoader::serializeTag(const ItemTagsLoader::Tag &tag)
 {
     return escapeTagField(tag.name)
-            + ";;" + escapeTagField(tag.color)
+            + ";;" + escapeTagField(serializeColor(tag.color))
             + ";;" + escapeTagField(tag.icon)
             + ";;" + escapeTagField(tag.styleSheet)
             + ";;" + escapeTagField(tag.match)
@@ -841,7 +822,7 @@ ItemTagsLoader::Tag ItemTagsLoader::deserializeTag(const QString &tagText)
 
     Tag tag;
     tag.name = unescapeTagField(tagFields.value(0));
-    tag.color = unescapeTagField(tagFields.value(1));
+    tag.color = QColor::fromString(unescapeTagField(tagFields.value(1)));
     tag.icon = unescapeTagField(tagFields.value(2));
     tag.styleSheet = unescapeTagField(tagFields.value(3));
     tag.match = unescapeTagField(tagFields.value(4));
@@ -867,10 +848,6 @@ ItemTagsLoader::Tags ItemTagsLoader::toTags(const QStringList &tagList)
             }
         } else {
             tag.name = tagName;
-
-            // Get default tag style from theme.
-            const QSettings settings;
-            tag.color = settings.value("Theme/num_fg").toString();
         }
 
         tags.append(tag);
@@ -899,9 +876,7 @@ void ItemTagsLoader::addTagToSettingsTable(const ItemTagsLoader::Tag &tag)
     t->setItem( row, tagsTableColumns::lock, lock );
 
     auto colorButton = new QPushButton(t);
-    const QColor color = tag.color.isEmpty()
-            ? QColor::fromRgb(50, 50, 50)
-            : deserializeColor(tag.color);
+    const QColor color = tag.color;
     setColorIcon(colorButton, color);
     t->setCellWidget(row, tagsTableColumns::color, colorButton);
     connect(colorButton, &QAbstractButton::clicked, this, &ItemTagsLoader::onColorButtonClicked);
@@ -920,9 +895,7 @@ ItemTagsLoader::Tag ItemTagsLoader::tagFromTable(int row)
 
     Tag tag;
     tag.name = t->item(row, tagsTableColumns::name)->text();
-    const QColor color =
-            cellWidgetProperty(t, row, tagsTableColumns::color, propertyColor).value<QColor>();
-    tag.color = serializeColor(color);
+    tag.color = cellWidgetProperty(t, row, tagsTableColumns::color, propertyColor).value<QColor>();
     tag.icon = cellWidgetProperty(t, row, tagsTableColumns::icon, "currentIcon").toString();
     tag.styleSheet = t->item(row, tagsTableColumns::styleSheet)->text();
     tag.match = t->item(row, tagsTableColumns::match)->text();

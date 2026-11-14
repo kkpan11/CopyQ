@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef X11PLATFORMWINDOW_H
-#define X11PLATFORMWINDOW_H
+#pragma once
+
 
 #include "platform/platformwindow.h"
-
-#include <memory>
 
 class AppConfig;
 class QWidget;
@@ -21,18 +19,18 @@ public:
 
     void raise() override;
 
-    void pasteClipboard() override;
+    bool pasteFromClipboard() override;
 
-    void copy() override;
+    bool copyToClipboard() override;
 
     bool isValid() const;
+
+    bool matchesWidget(const QWidget *widget) const override;
 
 private:
     bool waitForFocus(int ms);
 
-    void sendKeyPress(int modifier, int key, const AppConfig &config);
+    bool sendKeyPress(int modifier, int key, const AppConfig &config);
 
     quintptr m_window;
 };
-
-#endif // X11PLATFORMWINDOW_H

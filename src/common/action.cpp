@@ -2,14 +2,15 @@
 
 #include "action.h"
 
-#include "common/log.h"
 #include "common/mimetypes.h"
+#include "common/process.h"
 #include "common/processsignals.h"
-#include "common/timer.h"
 #include "item/serialize.h"
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QEventLoop>
+#include <QLoggingCategory>
 #include <QPointer>
 #include <QProcessEnvironment>
 #include <QRegularExpression>
@@ -17,11 +18,17 @@
 
 namespace {
 
+Q_DECLARE_LOGGING_CATEGORY(logCategory)
+Q_LOGGING_CATEGORY(logCategory, "copyq.action")
+
 void startProcess(QProcess *process, const QStringList &args, QIODevice::OpenModeFlag mode)
 {
     QString executable = args.value(0);
 
     // Replace "copyq" command with full application path.
+    // Use applicationFilePath() (resolves to the binary inside the current
+    // FUSE mount for AppImages) so that child processes reuse the parent's
+    // mount instead of creating a new one.
     if (executable == "copyq")
         executable = QCoreApplication::applicationFilePath();
 
@@ -40,11 +47,7 @@ void appendAndClearNonEmpty(Entry &entry, Container &container)
 bool getScriptFromLabel(const char *labelStr, const QString &cmd, int i, QString *script)
 {
     const QLatin1String label(labelStr);
-#if QT_VERSION < QT_VERSION_CHECK(5,10,0)
-    const auto mid = cmd.midRef(i, label.size());
-#else
     const auto mid = QStringView(cmd).mid(i, label.size());
-#endif
     if (mid == label) {
         *script = cmd.mid(i + label.size());
         return true;
@@ -72,12 +75,10 @@ QList< QList<QStringList> > parseCommands(const QString &cmd, const QStringList 
     for (int i = 0; i < cmd.size(); ++i) {
         const QChar &c = cmd[i];
 
-        if (percent) {
-            if (c == '1' || (c >= '2' && c <= '9' && capturedTexts.size() > 1)) {
-                arg.resize( arg.size() - 1 );
-                arg.append( capturedTexts.value(c.digitValue() - 1) );
-                continue;
-            }
+        if (percent && (c == '1' || (c >= '2' && c <= '9' && capturedTexts.size() > 1))) {
+            arg.resize( arg.size() - 1 );
+            arg.append( capturedTexts.value(c.digitValue() - 1) );
+            continue;
         }
         percent = !escape && c == '%';
 
@@ -169,18 +170,6 @@ void pipeThroughProcesses(Iterator begin, Iterator end)
 
 } // namespace
 
-void terminateProcess(QProcess *p)
-{
-    if (p->state() == QProcess::NotRunning)
-        return;
-
-    p->terminate();
-    if ( p->state() != QProcess::NotRunning && !p->waitForFinished(5000) ) {
-        p->kill();
-        p->waitForFinished(5000);
-    }
-}
-
 Action::Action(QObject *parent)
     : QObject(parent)
     , m_failed(false)
@@ -196,16 +185,17 @@ Action::~Action()
 
 QString Action::commandLine() const
 {
-    QString text;
-    for ( const auto &line : m_cmds ) {
-        for ( const auto &args : line ) {
-            if ( !text.isEmpty() )
-                text.append(QChar('|'));
-            text.append(args.join(" "));
+    QStringList groups;
+    for (const auto &line : m_cmds) {
+        QStringList cmds;
+        for (const auto &args : line) {
+            auto cmd = args.join(QLatin1Char(' '));
+            cmd.replace(QLatin1String("copyq eval --"), QLatin1String("copyq:"));
+            cmds.append(cmd);
         }
-        text.append('\n');
+        groups.append(cmds.join(QLatin1String(" | ")));
     }
-    return text.trimmed();
+    return groups.join(QLatin1String("; "));
 }
 
 void Action::setCommand(const QString &command, const QStringList &arguments)
@@ -244,7 +234,9 @@ void Action::start()
 
     Q_ASSERT( !cmds.isEmpty() );
 
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    // Avoid calling non-trivial QProcessEnvironment::systemEnvironment() repeatedly.
+    static const QProcessEnvironment baseEnv = QProcessEnvironment::systemEnvironment();
+    QProcessEnvironment env = baseEnv;
     if (m_id != -1)
         env.insert("COPYQ_ACTION_ID", QString::number(m_id));
     if ( !m_name.isEmpty() )
@@ -254,8 +246,11 @@ void Action::start()
         auto process = new QProcess(this);
         m_processes.push_back(process);
         process->setProcessEnvironment(env);
-        if ( !m_workingDirectoryPath.isEmpty() )
+        if ( !m_workingDirectoryPath.isEmpty()
+           && m_workingDirectoryPath != QDir::currentPath() )
+        {
             process->setWorkingDirectory(m_workingDirectoryPath);
+        }
 
         connectProcessError(process, this, &Action::onSubProcessError);
         connect( process, &QProcess::readyReadStandardError,
@@ -324,6 +319,19 @@ bool Action::isRunning() const
     return !m_processes.empty() && m_processes.back()->state() != QProcess::NotRunning;
 }
 
+QList<qint64> Action::processIds() const
+{
+    QList<qint64> pids;
+    for (const auto *proc : m_processes) {
+        if (proc->state() != QProcess::NotRunning) {
+            const auto pid = proc->processId();
+            if (pid != 0)
+                pids.append(pid);
+        }
+    }
+    return pids;
+}
+
 void Action::setData(const QVariantMap &data)
 {
     m_data = data;
@@ -347,7 +355,7 @@ void Action::appendErrorOutput(const QByteArray &errorOutput)
 
 void Action::onSubProcessError(int error)
 {
-    QProcess *p = qobject_cast<QProcess*>(sender());
+    auto *p = qobject_cast<QProcess*>(sender());
     Q_ASSERT(p);
 
     // Ignore write-to-process error, process can ignore the input.
@@ -386,7 +394,7 @@ void Action::onSubProcessOutput()
 
 void Action::onSubProcessErrorOutput()
 {
-    QProcess *p = qobject_cast<QProcess*>(sender());
+    auto *p = qobject_cast<QProcess*>(sender());
     Q_ASSERT(p);
 
     if ( p->isReadable() )
@@ -423,6 +431,28 @@ void Action::terminate()
     waitForFinished(5000);
     for (auto p : m_processes)
         terminateProcess(p);
+}
+
+void Action::requestTerminate()
+{
+    if (m_processes.empty() || !isRunning())
+        return;
+
+    qCWarning(logCategory) << "Terminating action:" << commandLine();
+    for (auto p : m_processes)
+        p->terminate();
+}
+
+void Action::requestKill()
+{
+    if (m_processes.empty() || !isRunning())
+        return;
+
+    qCWarning(logCategory) << "Killing action:" << commandLine();
+    for (auto p : m_processes) {
+        if (p->state() != QProcess::NotRunning)
+            p->kill();
+    }
 }
 
 void Action::closeSubCommands()

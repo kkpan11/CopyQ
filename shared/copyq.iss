@@ -10,6 +10,11 @@
 #define MyAppCopyrightStartYear  "2009"
 #define MyAppCopyrightEndYear    GetDateTimeString('yyyy','','')
 
+; Default AppVersionNumeric to AppVersion for standalone builds.
+#ifndef AppVersionNumeric
+#define AppVersionNumeric AppVersion
+#endif
+
 [Setup]
 AppId={{9DF1F443-EA0B-4C75-A4D3-767A7783228E}
 AppName={#MyAppName}
@@ -25,22 +30,22 @@ AppUpdatesURL=http://hluk.github.io/CopyQ/
 
 VersionInfoDescription={#MyAppName} installer
 VersionInfoProductName={#MyAppName} {#AppVersion}
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#AppVersionNumeric}
 
 UninstallDisplayName={#MyAppName} {#AppVersion}
-UninstallDisplayIcon={#Root}\copyq.exe
+UninstallDisplayIcon={app}\copyq.exe
 
 WizardStyle=Modern
 UsePreviousLanguage=no
 
-DefaultDirName={pf}\{#MyAppName}
+DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 
 AllowNoIcons=yes
-LicenseFile={#Source}\LICENSE
+LicenseFile={#Source}\shared\gpl-3.0.rtf
 OutputDir={#Output}
 PrivilegesRequiredOverridesAllowed=dialog
 OutputBaseFilename={#MyAppNameMin}-{#AppVersion}-setup
@@ -57,7 +62,7 @@ Name: cz; MessagesFile: "compiler:Languages\Czech.isl"
 Name: de; MessagesFile: "compiler:Languages\German.isl"
 Name: es; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: it; MessagesFile: "compiler:Languages\Italian.isl"
-Name: ko; MessagesFile: "Languages\Korean.isl"
+Name: ko; MessagesFile: "compiler:Languages\Korean.isl"
 
 [CustomMessages]
 en.ProgramFiles=Program Files
@@ -165,10 +170,11 @@ Source: "{#Root}\imageformats\*.dll"; DestDir: "{app}\imageformats"; Components:
 Source: "{#Root}\platforms\*.dll"; DestDir: "{app}\platforms"; Components: program; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#Root}\styles\*.dll"; DestDir: "{app}\styles"; Components: program; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#Root}\tls\*.dll"; DestDir: "{app}\tls"; Components: program; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#Root}\crypto\*.dll"; DestDir: "{app}\crypto"; Components: program; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#Root}\*.dll"; DestDir: "{app}"; Components: program; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\CopyQ"; Filename: "{app}\copyq.exe"
+Name: "{group}\CopyQ"; Filename: "{app}\copyq.exe"; Parameters: "--start-server show"
 Name: "{commondesktop}\CopyQ"; Filename: "{app}\copyq.exe"; Tasks: desktopicon
 Name: "{userstartup}\CopyQ"; Filename: "{app}\copyq.exe"; Tasks: startup
 

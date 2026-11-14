@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef TRAYMENU_H
-#define TRAYMENU_H
+#pragma once
+
+
+#include "common/navigationstyle.h"
 
 #include <QMenu>
 #include <QPointer>
@@ -36,8 +38,7 @@ public:
     /** Clear clipboard item actions and curstom actions. */
     void clearAllActions();
 
-    /** Handle Vi shortcuts. */
-    void setViModeEnabled(bool enabled);
+    void setNavigationStyle(NavigationStyle style);
 
     /** Enable searching for numbers. */
     void setNumberSearchEnabled(bool enabled);
@@ -82,8 +83,8 @@ private:
     int m_clipboardItemActionCount;
 
     bool m_omitPaste;
-    bool m_viMode;
     bool m_numberSearch;
+    NavigationStyle m_navigationStyle = NavigationStyle::Default;
 
     QString m_searchText;
 
@@ -94,5 +95,3 @@ private:
     QList<QAction*> m_clipboardActions;
     QList<QAction*> m_customActions;
 };
-
-#endif // TRAYMENU_H

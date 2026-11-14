@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef CLIPBOARDMODEL_H
-#define CLIPBOARDMODEL_H
+#pragma once
+
 
 #include "item/clipboarditem.h"
 
@@ -58,11 +58,7 @@ public:
 
     void resize(int size)
     {
-        if (size < this->size())
-            remove(size, this->size());
-
-        while (size > this->size())
-            m_items.append(ClipboardItem());
+        m_items.resize(size);
     }
 
 private:
@@ -106,7 +102,9 @@ public:
     /** insert new item to model. */
     void insertItem(const QVariantMap &data, int row);
 
-    void insertItems(const QList<QVariantMap> &dataList, int row);
+    void insertItems(const QVector<QVariantMap> &dataList, int row);
+
+    void setItemsData(const QMap<QPersistentModelIndex, QVariantMap> &itemsData);
 
     /**
      * Sort items in ascending order.
@@ -123,5 +121,3 @@ public:
 private:
     ClipboardItemList m_clipboardList;
 };
-
-#endif // CLIPBOARDMODEL_H

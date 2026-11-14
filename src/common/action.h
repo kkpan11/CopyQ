@@ -1,18 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef ACTION_H
-#define ACTION_H
+#pragma once
+
 
 #include <QStringList>
 #include <QVariantMap>
 
 class QAction;
 class QProcess;
-
-/**
- * Terminate process or kill if it takes too long.
- */
-void terminateProcess(QProcess *p);
 
 /**
  * Execute external program and emits signals
@@ -65,6 +60,8 @@ public:
 
     bool isRunning() const;
 
+    QList<qint64> processIds() const;
+
     /** Set human-readable name for action. */
     void setName(const QString &actionName) { m_name = actionName; }
 
@@ -88,6 +85,12 @@ public:
 
     /** Terminate (kill) process. */
     void terminate();
+
+    /** Async: send SIGTERM to child processes, no blocking wait. */
+    void requestTerminate();
+
+    /** Async: send SIGKILL to still-running child processes, no blocking wait. */
+    void requestKill();
 
 signals:
     /** Emitted when finished. */
@@ -126,5 +129,3 @@ private:
 
     int m_id = -1;
 };
-
-#endif // ACTION_H

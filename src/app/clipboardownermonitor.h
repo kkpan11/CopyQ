@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef CLIPBOARDOWNERMONITOR_H
-#define CLIPBOARDOWNERMONITOR_H
+#pragma once
+
 
 #include <QAbstractNativeEventFilter>
 #include <QByteArray>
@@ -9,11 +9,7 @@
 
 class ClipboardMonitor;
 
-#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
 using NativeEventResult = qintptr;
-#else
-using NativeEventResult = long;
-#endif
 
 class ClipboardOwnerMonitor final : public QAbstractNativeEventFilter
 {
@@ -35,5 +31,3 @@ private:
     QTimer m_timerSetOwner;
     QTimer m_timerUpdateAfterEvent;
 };
-
-#endif // CLIPBOARDOWNERMONITOR_H

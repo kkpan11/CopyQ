@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef DUMMYPLATFORM_H
-#define DUMMYPLATFORM_H
+#pragma once
+
 
 #include "platform/platformnativeinterface.h"
 
@@ -21,13 +21,14 @@ public:
 
     bool isAutostartEnabled() override { return false; }
 
-    void setAutostartEnabled(bool) override {}
+    void setAutostartEnabled(bool) override { /* Dummy platform: autostart not supported */ }
+
+    bool setPreventScreenCapture(WId, bool) override { return false; }
+    bool canPreventScreenCapture() override { return false; }
 
     QCoreApplication *createConsoleApplication(int &argc, char **argv) override;
 
     QApplication *createServerApplication(int &argc, char **argv) override;
-
-    QGuiApplication *createMonitorApplication(int &argc, char **argv) override;
 
     QGuiApplication *createClipboardProviderApplication(int &argc, char **argv) override;
 
@@ -46,6 +47,6 @@ public:
     QString translationPrefix() override;
 
     QString themePrefix() override { return QString(); }
-};
 
-#endif // DUMMYPLATFORM_H
+    qint64 processResidentMemoryBytes(qint64) override { return -1; }
+};

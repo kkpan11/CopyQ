@@ -7,9 +7,13 @@
 #include "common/common.h"
 #include "common/config.h"
 #include "common/contenttype.h"
+#include "common/encryption.h"
 #include "common/log.h"
 #include "common/mimetypes.h"
 #include "common/textdata.h"
+#include "gui/clipboardbrowsershared.h"
+#include "gui/encryptionpassword.h"
+#include "item/indexes.h"
 #include "item/itemfilter.h"
 #include "item/itemstore.h"
 #include "item/itemwidget.h"
@@ -18,6 +22,7 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QFile>
 #include <QIODevice>
 #include <QLabel>
 #include <QMessageBox>
@@ -33,7 +38,7 @@ namespace {
 bool findPluginDir(QDir *pluginsDir)
 {
 #ifdef COPYQ_PLUGIN_PREFIX
-    pluginsDir->setPath(COPYQ_PLUGIN_PREFIX);
+    pluginsDir->setPath(adjustedInstallPath(QStringLiteral(COPYQ_PLUGIN_PREFIX)));
     if ( pluginsDir->isReadable() )
         return true;
 #endif
@@ -168,17 +173,13 @@ public:
 
     void setTagged(bool tagged) override
     {
-        setVisible( !tagged || (m_hasText && !m_data.contains(mimeHidden)) );
+        setVisible( !tagged || ((m_hasText || hasPixmap()) && !m_data.contains(mimeHidden)) );
     }
 
 private:
     bool hasPixmap() const
     {
-#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
         return !pixmap(Qt::ReturnByValue).isNull();
-#else
-        return pixmap() != nullptr;
-#endif
     }
 
     bool m_hasText;
@@ -190,22 +191,29 @@ private:
 class DummySaver final : public ItemSaverInterface
 {
 public:
-    explicit DummySaver(int itemDataThreshold)
+    explicit DummySaver(int itemDataThreshold, const ClipboardBrowserSharedPtr &sharedData)
         : m_itemDataThreshold(itemDataThreshold)
+        , m_sharedData(sharedData)
     {}
 
     bool saveItems(const QString & /* tabName */, const QAbstractItemModel &model, QIODevice *file) override
     {
-        return serializeData(model, file, m_itemDataThreshold);
+        const Encryption::EncryptionKey &encKey = m_sharedData->encryptionKey;
+        return serializeData(model, file, m_itemDataThreshold, &encKey);
     }
 
 private:
     int m_itemDataThreshold = -1;
+    ClipboardBrowserSharedPtr m_sharedData;
 };
 
 class DummyLoader final : public ItemLoaderInterface
 {
 public:
+    explicit DummyLoader(const ClipboardBrowserSharedPtr &sharedData)
+        : m_sharedData(sharedData)
+    {}
+
     int priority() const override { return std::numeric_limits<int>::min(); }
 
     QString id() const override { return {}; }
@@ -214,7 +222,7 @@ public:
     QString description() const override { return {}; }
     QVariant icon() const override { return {}; }
 
-    void setEnabled(bool) override {}
+    void setEnabled(bool) override { /* Dummy loader: always active, ignores enable/disable */ }
     void loadSettings(const QSettings &) override
     {
         m_itemDataThreshold = AppConfig().option<Config::item_data_threshold>();
@@ -229,16 +237,16 @@ public:
 
     bool canSaveItems(const QString &) const override { return true; }
 
-    ItemSaverPtr loadItems(const QString &tabName, QAbstractItemModel *model, QIODevice *file, int maxItems) override
+    ItemSaverPtr loadItems(const QString &tabName, QAbstractItemModel *model, QIODevice *file, int) override
     {
         if ( file->size() > 0 ) {
-            if ( !deserializeData(model, file, maxItems) ) {
+            if ( !deserializeData(model, file, &m_sharedData->encryptionKey) ) {
                 const int itemsLoadedCount = model->rowCount();
                 if ( itemsLoadedCount > 0 && askToKeepCorruptedTab(tabName) ) {
                     log(QStringLiteral("Keeping corrupted tab on user request"));
                     file->close();
                     file->open(QIODevice::WriteOnly);
-                    ItemSaverPtr saver = std::make_shared<DummySaver>(m_itemDataThreshold);
+                    ItemSaverPtr saver = std::make_shared<DummySaver>(m_itemDataThreshold, m_sharedData);
                     saver->saveItems(tabName, *model, file);
                     return saver;
                 }
@@ -248,12 +256,12 @@ public:
             }
         }
 
-        return std::make_shared<DummySaver>(m_itemDataThreshold);
+        return std::make_shared<DummySaver>(m_itemDataThreshold, m_sharedData);
     }
 
     ItemSaverPtr initializeTab(const QString &, QAbstractItemModel *, int) override
     {
-        return std::make_shared<DummySaver>(m_itemDataThreshold);
+        return std::make_shared<DummySaver>(m_itemDataThreshold, m_sharedData);
     }
 
     bool matches(const QModelIndex &index, const ItemFilter &filter) const override
@@ -262,8 +270,11 @@ public:
         return filter.matches(text) || filter.matches(accentsRemoved(text));
     }
 
+    bool supportsEncryption() const override { return true; }
+
 private:
     int m_itemDataThreshold = -1;
+    ClipboardBrowserSharedPtr m_sharedData;
 };
 
 ItemSaverPtr transformSaver(
@@ -314,19 +325,30 @@ std::pair<ItemSaverPtr, ItemLoaderPtr> saveWithOther(
     return {newSaver, newLoader};
 }
 
-} // namespace
-
-ItemFactory::ItemFactory(QObject *parent)
-    : QObject(parent)
-    , m_loaders()
-    , m_dummyLoader(std::make_shared<DummyLoader>())
-    , m_loaderChildren()
+void cropToSize(const ItemSaverPtr &saver, QAbstractItemModel *model, int maxItems)
 {
+    const auto toRemove = model->rowCount() - maxItems;
+    if (toRemove <= 0)
+        return;
+
+    QList<QPersistentModelIndex> indexesToRemove;
+    for (int row = model->rowCount() - 1; row >= 0 && indexesToRemove.size() < toRemove; --row) {
+        const auto index = model->index(row, 0);
+        if ( saver->canDropItem(index) )
+            indexesToRemove.append(index);
+    }
+
+    dropIndexes(indexesToRemove, model);
 }
 
-ItemFactory::~ItemFactory()
+} // namespace
+
+ItemFactory::ItemFactory(const ClipboardBrowserSharedPtr &sharedData, QObject *parent)
+    : QObject(parent)
+    , m_sharedData(sharedData ? sharedData : std::make_shared<ClipboardBrowserShared>())
+    , m_dummyLoader(std::make_shared<DummyLoader>(sharedData))
+    , m_loaderChildren()
 {
-    // Plugins are unloaded at application exit.
 }
 
 ItemWidget *ItemFactory::createItem(
@@ -417,11 +439,13 @@ void ItemFactory::setPluginPriority(const QStringList &pluginNames)
 ItemSaverPtr ItemFactory::loadItems(const QString &tabName, QAbstractItemModel *model, QIODevice *file, int maxItems)
 {
     for (auto &loader : m_loaders) {
-        if ( !loader->isEnabled() )
-            continue;
-
         file->seek(0);
         if ( loader->canLoadItems(file) ) {
+            if ( !loader->isEnabled() ) {
+                log(QStringLiteral("Cannot load tab %1, plugin %2 must be enabled")
+                    .arg(quoteString(tabName), loader->name()));
+                return nullptr;
+            }
             file->seek(0);
             auto saver = loader->loadItems(tabName, model, file, maxItems);
             if (!saver)
@@ -429,7 +453,9 @@ ItemSaverPtr ItemFactory::loadItems(const QString &tabName, QAbstractItemModel *
             file->close();
             ItemLoaderPtr newLoader;
             std::tie(saver, newLoader) = saveWithOther(tabName, model, saver, loader, m_loaders, maxItems);
-            return transformSaver(model, saver, newLoader, m_loaders);
+            saver = transformSaver(model, saver, newLoader, m_loaders);
+            cropToSize(saver, model, maxItems);
+            return saver;
         }
     }
 
@@ -441,7 +467,7 @@ ItemSaverPtr ItemFactory::loadItems(const QString &tabName, QAbstractItemModel *
     return nullptr;
 }
 
-ItemSaverPtr ItemFactory::initializeTab(const QString &tabName, QAbstractItemModel *model, int maxItems)
+ItemSaverPtr ItemFactory::initializeTab(const QString &tabName, QAbstractItemModel *model, int maxItems) const
 {
     for (const auto &loader : m_loaders) {
         if ( loader->isEnabled() && loader->canSaveItems(tabName) ) {
@@ -510,6 +536,20 @@ bool ItemFactory::loadPlugins()
     if (pluginsLoaded)
         return true;
     pluginsLoaded = true;
+
+    const QStringList plugins = qEnvironmentVariable("COPYQ_PLUGINS").split(';', Qt::SkipEmptyParts);
+    for (const auto &path : plugins) {
+        auto loader = loadPlugin(path, QString());
+        if (loader)
+            addLoader(loader);
+        else
+            log(QStringLiteral("Failed to load plugin: %1").arg(path), LogError);
+    }
+
+    const QStringList allowPlugins =
+        qEnvironmentVariable("COPYQ_ALLOW_PLUGINS")
+        .split(QChar(','), Qt::SkipEmptyParts);
+    pluginsDir.setNameFilters(allowPlugins);
 
     for (const auto &fileName : pluginsDir.entryList(QDir::Files)) {
         const QString path = pluginsDir.absoluteFilePath(fileName);
@@ -641,11 +681,17 @@ bool ItemFactory::loadItemFactorySettings(const ItemLoaderPtr &loader, QSettings
 
     settings->endGroup();
 
-#ifdef HAS_TESTS
-    // For tests, enable only the tested plugin.
-    const QString testId = qApp->property("CopyQ_test_id").toString();
-    if ( !testId.isEmpty() )
-        return loader->id() == testId;
-#endif
     return enabled;
+}
+
+QStringList ItemFactory::copyqStats() const
+{
+    QStringList lines;
+    for (const auto &loader : m_loaders) {
+        if (loader == m_dummyLoader)
+            continue;
+        lines.append(QStringLiteral("PLUGIN %1: %2")
+            .arg(loader->id(), loader->isEnabled() ? "enabled" : "disabled"));
+    }
+    return lines;
 }

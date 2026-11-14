@@ -62,7 +62,7 @@ public:
         edit->update();
     }
 
-    void search(QTextEdit *, bool) const override {}
+    void search(QTextEdit *, bool) const override { /* Simple filter: uses highlight only, no incremental search */ }
 
 private:
     QString m_text;
@@ -94,11 +94,7 @@ ConfigTabAppearance::ConfigTabAppearance(QWidget *parent)
     connect(ui->checkBoxAntialias, &QCheckBox::stateChanged,
             this, &ConfigTabAppearance::onCheckBoxAntialiasStateChanged);
 
-#if QT_VERSION >= QT_VERSION_CHECK(5,14,0)
     connect(ui->comboBoxThemes, &QComboBox::textActivated,
-#else
-    connect(ui->comboBoxThemes, static_cast<void (QComboBox::*)(const QString&)>(&QComboBox::activated),
-#endif
             this, &ConfigTabAppearance::onComboBoxThemesActivated);
 
     initSingleShotTimer(&m_timerPreview, 0, this, &ConfigTabAppearance::decoratePreviewNow);
@@ -195,7 +191,7 @@ void ConfigTabAppearance::onPushButtonEditThemeClicked()
         return;
     }
 
-    TemporarySettings settings;
+    TemporarySettings settings({});
     saveTheme(settings.settings());
 
     QByteArray data = settings.content();
@@ -208,7 +204,7 @@ void ConfigTabAppearance::onPushButtonEditThemeClicked()
 #endif
                  );
 
-    ItemEditor *editor = new ItemEditor(data, COPYQ_MIME_PREFIX "theme", m_editor, this);
+    auto *editor = new ItemEditor(data, COPYQ_MIME_PREFIX "theme", m_editor, this);
 
     connect( editor, &ItemEditor::fileModified,
              this, &ConfigTabAppearance::onThemeModified );
@@ -375,11 +371,11 @@ void ConfigTabAppearance::updateFontButtons()
 
         const QString colorButtonName = "pushButtonColor" + m.captured(1);
 
-        QPushButton *buttonFg = ui->scrollAreaTheme->findChild<QPushButton *>(colorButtonName + "Fg");
+        auto *buttonFg = ui->scrollAreaTheme->findChild<QPushButton *>(colorButtonName + "Fg");
         QColor colorFg = (buttonFg == nullptr) ? m_theme.color("fg")
                                             : evalColor( buttonFg->property("VALUE").toString(), m_theme );
 
-        QPushButton *buttonBg = ui->scrollAreaTheme->findChild<QPushButton *>(colorButtonName + "Bg");
+        auto *buttonBg = ui->scrollAreaTheme->findChild<QPushButton *>(colorButtonName + "Bg");
         QColor colorBg = (buttonBg == nullptr) ? m_theme.color("bg")
                                             : evalColor( buttonBg->property("VALUE").toString(), m_theme );
 

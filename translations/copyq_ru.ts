@@ -9,27 +9,27 @@
         <translation>О программе</translation>
     </message>
     <message>
-        <location filename="../src/gui/aboutdialog.cpp" line="84"/>
+        <location filename="../src/gui/aboutdialog.cpp" line="114"/>
         <source>Clipboard Manager</source>
         <translation>Менеджер буфера обмена</translation>
     </message>
     <message>
-        <location filename="../src/gui/aboutdialog.cpp" line="91"/>
+        <location filename="../src/gui/aboutdialog.cpp" line="121"/>
         <source>Author</source>
         <translation>Автор</translation>
     </message>
     <message>
-        <location filename="../src/gui/aboutdialog.cpp" line="92"/>
+        <location filename="../src/gui/aboutdialog.cpp" line="122"/>
         <source>E-mail</source>
         <translation>Эл. почта</translation>
     </message>
     <message>
-        <location filename="../src/gui/aboutdialog.cpp" line="93"/>
+        <location filename="../src/gui/aboutdialog.cpp" line="123"/>
         <source>Web</source>
         <translation>Сайт</translation>
     </message>
     <message>
-        <location filename="../src/gui/aboutdialog.cpp" line="94"/>
+        <location filename="../src/gui/aboutdialog.cpp" line="124"/>
         <source>Donate</source>
         <translation>Пожертвовать</translation>
     </message>
@@ -107,17 +107,17 @@ You can set up the command in preferences.</source>
 <context>
     <name>ActionHandler</name>
     <message>
-        <location filename="../src/gui/actionhandler.cpp" line="118"/>
+        <location filename="../src/gui/actionhandler.cpp" line="156"/>
         <source>Error: %1</source>
         <translation>Ошибка: %1</translation>
     </message>
     <message>
-        <location filename="../src/gui/actionhandler.cpp" line="128"/>
+        <location filename="../src/gui/actionhandler.cpp" line="174"/>
         <source>Exit code: %1</source>
         <translation>Код выхода: %1</translation>
     </message>
     <message>
-        <location filename="../src/gui/actionhandler.cpp" line="158"/>
+        <location filename="../src/gui/actionhandler.cpp" line="207"/>
         <source>Command %1</source>
         <translation>Команда %1</translation>
     </message>
@@ -148,175 +148,175 @@ You can set up the command in preferences.</source>
         <translation>Добавить команды</translation>
     </message>
     <message>
-        <location filename="../src/common/globalshortcutcommands.cpp" line="63"/>
+        <location filename="../src/common/globalshortcutcommands.cpp" line="64"/>
         <source>Show/hide main window</source>
         <translation>Показать/скрыть главное окно</translation>
     </message>
     <message>
-        <location filename="../src/common/globalshortcutcommands.cpp" line="64"/>
+        <location filename="../src/common/globalshortcutcommands.cpp" line="65"/>
         <source>Show the tray menu</source>
         <translation>Показать меню в трее</translation>
     </message>
     <message>
-        <location filename="../src/common/globalshortcutcommands.cpp" line="65"/>
+        <location filename="../src/common/globalshortcutcommands.cpp" line="66"/>
         <source>Show main window under mouse cursor</source>
         <translation>Показать главное окно под курсором мыши</translation>
     </message>
     <message>
-        <location filename="../src/common/globalshortcutcommands.cpp" line="66"/>
+        <location filename="../src/common/globalshortcutcommands.cpp" line="67"/>
         <source>Edit clipboard</source>
         <translation>Править буфер обмена</translation>
     </message>
     <message>
-        <location filename="../src/common/globalshortcutcommands.cpp" line="67"/>
+        <location filename="../src/common/globalshortcutcommands.cpp" line="68"/>
         <source>Edit first item</source>
         <translation>Править первый объект</translation>
     </message>
     <message>
-        <location filename="../src/common/globalshortcutcommands.cpp" line="68"/>
+        <location filename="../src/common/globalshortcutcommands.cpp" line="69"/>
         <source>Copy second item</source>
         <translation>Копировать второй объект</translation>
     </message>
     <message>
-        <location filename="../src/common/globalshortcutcommands.cpp" line="69"/>
+        <location filename="../src/common/globalshortcutcommands.cpp" line="70"/>
         <source>Show action dialog</source>
         <translation>Показать диалог действий</translation>
     </message>
     <message>
-        <location filename="../src/common/globalshortcutcommands.cpp" line="70"/>
+        <location filename="../src/common/globalshortcutcommands.cpp" line="71"/>
         <source>Create new item</source>
         <translation>Создать новый объект</translation>
     </message>
     <message>
-        <location filename="../src/common/globalshortcutcommands.cpp" line="71"/>
+        <location filename="../src/common/globalshortcutcommands.cpp" line="72"/>
         <source>Copy next item</source>
         <translation>Копировать следующий объект</translation>
     </message>
     <message>
-        <location filename="../src/common/globalshortcutcommands.cpp" line="72"/>
+        <location filename="../src/common/globalshortcutcommands.cpp" line="73"/>
         <source>Copy previous item</source>
         <translation>Копировать предыдущий объект</translation>
     </message>
     <message>
-        <location filename="../src/common/globalshortcutcommands.cpp" line="73"/>
+        <location filename="../src/common/globalshortcutcommands.cpp" line="74"/>
         <source>Paste clipboard as plain text</source>
         <translation>Вставить буфер обмена в виде обычного текста</translation>
     </message>
     <message>
-        <location filename="../src/common/globalshortcutcommands.cpp" line="74"/>
+        <location filename="../src/common/globalshortcutcommands.cpp" line="75"/>
         <source>Disable clipboard storing</source>
         <translation>Отключить сохранение буфера обмена</translation>
     </message>
     <message>
-        <location filename="../src/common/globalshortcutcommands.cpp" line="75"/>
+        <location filename="../src/common/globalshortcutcommands.cpp" line="76"/>
         <source>Enable clipboard storing</source>
         <translation>Включить сохранение буфера обмена</translation>
     </message>
     <message>
-        <location filename="../src/common/globalshortcutcommands.cpp" line="76"/>
+        <location filename="../src/common/globalshortcutcommands.cpp" line="77"/>
         <source>Paste and copy next</source>
         <translation>Вставить и скопировать следующий</translation>
     </message>
     <message>
-        <location filename="../src/common/globalshortcutcommands.cpp" line="77"/>
+        <location filename="../src/common/globalshortcutcommands.cpp" line="78"/>
         <source>Paste and copy previous</source>
         <translation>Вставить и скопировать предыдущий</translation>
     </message>
     <message>
-        <location filename="../src/common/globalshortcutcommands.cpp" line="78"/>
+        <location filename="../src/common/globalshortcutcommands.cpp" line="79"/>
         <source>Take screenshot</source>
         <translation>Сделать скриншот</translation>
     </message>
     <message>
-        <location filename="../src/common/globalshortcutcommands.cpp" line="79"/>
+        <location filename="../src/common/globalshortcutcommands.cpp" line="80"/>
         <source>Paste current date and time</source>
         <translation>Вставить текущие дату и время</translation>
     </message>
     <message>
-        <location filename="../src/common/predefinedcommands.cpp" line="40"/>
+        <location filename="../src/common/predefinedcommands.cpp" line="41"/>
         <source>New command</source>
         <translation>Новая команда</translation>
     </message>
     <message>
-        <location filename="../src/common/predefinedcommands.cpp" line="47"/>
+        <location filename="../src/common/predefinedcommands.cpp" line="48"/>
         <source>Ignore items with no or single character</source>
         <translation>Игнорировать объекты без символов или только с одним символом</translation>
     </message>
     <message>
-        <location filename="../src/common/predefinedcommands.cpp" line="84"/>
+        <location filename="../src/common/predefinedcommands.cpp" line="77"/>
         <source>Open in &amp;Browser</source>
         <translation>Открыть в &amp;браузере</translation>
     </message>
     <message>
-        <location filename="../src/common/predefinedcommands.cpp" line="92"/>
+        <location filename="../src/common/predefinedcommands.cpp" line="85"/>
         <source>Paste as Plain Text</source>
         <translation>Вставить как обычный текст</translation>
     </message>
     <message>
-        <location filename="../src/common/predefinedcommands.cpp" line="100"/>
+        <location filename="../src/common/predefinedcommands.cpp" line="93"/>
         <source>Autoplay videos</source>
         <translation>Автовоспроизведение видео</translation>
     </message>
     <message>
-        <location filename="../src/common/predefinedcommands.cpp" line="109"/>
+        <location filename="../src/common/predefinedcommands.cpp" line="102"/>
         <source>Copy URL (web address) to other tab</source>
         <translation>Копировать URL (веб-адрес) в другую вкладку</translation>
     </message>
     <message>
-        <location filename="../src/common/predefinedcommands.cpp" line="116"/>
+        <location filename="../src/common/predefinedcommands.cpp" line="109"/>
         <source>Create thumbnail (needs ImageMagick)</source>
         <translation>Создать эскиз (требуется ImageMagick)</translation>
     </message>
     <message>
-        <location filename="../src/common/predefinedcommands.cpp" line="124"/>
+        <location filename="../src/common/predefinedcommands.cpp" line="117"/>
         <source>Create QR Code from URL (needs qrencode)</source>
         <translation>Создать QR-код из URL (требуется qrencode)</translation>
     </message>
     <message>
-        <location filename="../src/common/predefinedcommands.cpp" line="132"/>
+        <location filename="../src/common/predefinedcommands.cpp" line="125"/>
         <source>Tasks</source>
         <comment>Tab name for some predefined commands</comment>
         <translation>Задачи</translation>
     </message>
     <message>
-        <location filename="../src/common/predefinedcommands.cpp" line="135"/>
+        <location filename="../src/common/predefinedcommands.cpp" line="128"/>
         <source>Add to %1 tab</source>
         <comment>%1 is quoted Tasks tab name</comment>
         <translation>Добавить на вкладку %1</translation>
     </message>
     <message>
-        <location filename="../src/common/predefinedcommands.cpp" line="143"/>
+        <location filename="../src/common/predefinedcommands.cpp" line="136"/>
         <source>Move to %1 tab</source>
         <comment>%1 is quoted Tasks tab name</comment>
         <translation>Переместить на вкладку %1</translation>
     </message>
     <message>
-        <location filename="../src/common/predefinedcommands.cpp" line="152"/>
+        <location filename="../src/common/predefinedcommands.cpp" line="144"/>
         <source>Ignore copied files</source>
         <translation>Игнорировать скопированные файлы</translation>
     </message>
     <message>
-        <location filename="../src/common/predefinedcommands.cpp" line="161"/>
+        <location filename="../src/common/predefinedcommands.cpp" line="153"/>
         <source>Ignore *&quot;Password&quot;* window</source>
         <translation>Игнорировать окно *&quot;Пароль&quot;*</translation>
     </message>
     <message>
-        <location filename="../src/common/predefinedcommands.cpp" line="162"/>
+        <location filename="../src/common/predefinedcommands.cpp" line="154"/>
         <source>Password</source>
         <translation>Пароль</translation>
     </message>
     <message>
-        <location filename="../src/common/predefinedcommands.cpp" line="170"/>
+        <location filename="../src/common/predefinedcommands.cpp" line="162"/>
         <source>Move to Trash</source>
         <translation>Переместить в корзину</translation>
     </message>
     <message>
-        <location filename="../src/common/predefinedcommands.cpp" line="173"/>
+        <location filename="../src/common/predefinedcommands.cpp" line="165"/>
         <source>(trash)</source>
         <translation>(корзина)</translation>
     </message>
     <message>
-        <location filename="../src/common/predefinedcommands.cpp" line="177"/>
+        <location filename="../src/common/predefinedcommands.cpp" line="169"/>
         <source>Clear Current Tab</source>
         <translation>Очистить текущую вкладку</translation>
     </message>
@@ -332,17 +332,17 @@ You can set up the command in preferences.</source>
         <translation type="vanished">Вкладка заполнена. Не удалось удалить какие-либо элементы.</translation>
     </message>
     <message>
-        <location filename="../src/gui/clipboardbrowser.cpp" line="1579"/>
+        <location filename="../src/gui/clipboardbrowser.cpp" line="1586"/>
         <source>Cannot add new items to tab %1. Please remove items manually to make space.</source>
         <translation>Не удаётся добавить новые объекты во вкладку %1. Пожалуйста, удалите объекты вручную, чтобы освободить место.</translation>
     </message>
     <message>
-        <location filename="../src/gui/clipboardbrowser.cpp" line="1866"/>
+        <location filename="../src/gui/clipboardbrowser.cpp" line="1913"/>
         <source>Discard Changes?</source>
         <translation>Отменить правки?</translation>
     </message>
     <message>
-        <location filename="../src/gui/clipboardbrowser.cpp" line="1867"/>
+        <location filename="../src/gui/clipboardbrowser.cpp" line="1914"/>
         <source>Do you really want to &lt;strong&gt;discard changes&lt;/strong&gt;?</source>
         <translation>Вы действительно хотите &lt;strong&gt;отменить правки&lt;/strong&gt;?</translation>
     </message>
@@ -350,12 +350,12 @@ You can set up the command in preferences.</source>
 <context>
     <name>ClipboardClient</name>
     <message>
-        <location filename="../src/app/clipboardclient.cpp" line="108"/>
+        <location filename="../src/app/clipboardclient.cpp" line="106"/>
         <source>Cannot connect to server! Start CopyQ server first.</source>
         <translation>Невозможно подключится к серверу! Сначала запустите сервер CopyQ.</translation>
     </message>
     <message>
-        <location filename="../src/app/clipboardclient.cpp" line="101"/>
+        <location filename="../src/app/clipboardclient.cpp" line="99"/>
         <source>Connection lost!</source>
         <translation>Соединение потеряно!</translation>
     </message>
@@ -383,12 +383,12 @@ You can set up the command in preferences.</source>
         <translation>Удалить формат</translation>
     </message>
     <message>
-        <location filename="../src/gui/clipboarddialog.cpp" line="82"/>
+        <location filename="../src/gui/clipboarddialog.cpp" line="84"/>
         <source>Item Content</source>
         <translation>Содержимое объекта</translation>
     </message>
     <message>
-        <location filename="../src/gui/clipboarddialog.cpp" line="151"/>
+        <location filename="../src/gui/clipboarddialog.cpp" line="155"/>
         <source>&lt;strong&gt;Size:&lt;/strong&gt; %1 bytes</source>
         <comment>Size of clipboard/item data in bytes</comment>
         <translation>&lt;strong&gt;Размер:&lt;/strong&gt; %1 байт</translation>
@@ -402,27 +402,27 @@ You can set up the command in preferences.</source>
 <context>
     <name>ClipboardServer</name>
     <message>
-        <location filename="../src/app/clipboardserver.cpp" line="104"/>
+        <location filename="../src/app/clipboardserver.cpp" line="135"/>
         <source>CopyQ server is already running.</source>
         <translation>Сервер CopyQ уже запущен.</translation>
     </message>
     <message>
-        <location filename="../src/app/clipboardserver.cpp" line="368"/>
+        <location filename="../src/app/clipboardserver.cpp" line="419"/>
         <source>Cancel Active Commands</source>
         <translation>Отменить запущенные команды</translation>
     </message>
     <message>
-        <location filename="../src/app/clipboardserver.cpp" line="369"/>
+        <location filename="../src/app/clipboardserver.cpp" line="420"/>
         <source>Cancel active commands and exit?</source>
         <translation>Отменить запущенные команды и выйти?</translation>
     </message>
     <message>
-        <location filename="../src/app/clipboardserver.cpp" line="372"/>
+        <location filename="../src/app/clipboardserver.cpp" line="423"/>
         <source>Cancel Exiting</source>
         <translation>Отменить выход</translation>
     </message>
     <message>
-        <location filename="../src/app/clipboardserver.cpp" line="373"/>
+        <location filename="../src/app/clipboardserver.cpp" line="424"/>
         <source>Exit Anyway</source>
         <translation>Всё равно выйти</translation>
     </message>
@@ -474,34 +474,44 @@ You can set up the command in preferences.</source>
         <translation>Вставить команды</translation>
     </message>
     <message>
-        <location filename="../src/gui/commanddialog.cpp" line="177"/>
+        <location filename="../src/gui/commanddialog.cpp" line="178"/>
         <source>Unsaved Changes</source>
         <translation>Несохранённые правки</translation>
     </message>
     <message>
-        <location filename="../src/gui/commanddialog.cpp" line="177"/>
+        <location filename="../src/gui/commanddialog.cpp" line="178"/>
         <source>Command dialog has unsaved changes.</source>
         <translation>В диалоге «Команды» есть несохранённые правки.</translation>
     </message>
     <message>
-        <location filename="../src/gui/commanddialog.cpp" line="255"/>
+        <location filename="../src/gui/commanddialog.cpp" line="256"/>
         <source>Open Files with Commands</source>
         <translation>Открыть файл с командами</translation>
     </message>
     <message>
-        <location filename="../src/gui/commanddialog.cpp" line="256"/>
+        <location filename="../src/gui/commanddialog.cpp" line="257"/>
         <source>Commands (*.ini);; CopyQ Configuration (copyq.conf copyq-*.conf)</source>
         <translation>Файлы команд (*.ini);; Файлы конфигурации CopyQ (copyq.conf copyq-*.conf)</translation>
     </message>
     <message>
-        <location filename="../src/gui/commanddialog.cpp" line="267"/>
+        <location filename="../src/gui/commanddialog.cpp" line="268"/>
         <source>Save Selected Commands</source>
         <translation>Сохранить выбранные команды</translation>
     </message>
     <message>
-        <location filename="../src/gui/commanddialog.cpp" line="268"/>
+        <location filename="../src/gui/commanddialog.cpp" line="269"/>
         <source>Commands (*.ini)</source>
         <translation>Файлы команд (*.ini)</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/commanddialog.cpp" line="277"/>
+        <source>Save Commands</source>
+        <translation>Сохранить команды</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/commanddialog.cpp" line="278"/>
+        <source>Failed to save commands to file &quot;%1&quot;: %2</source>
+        <translation>Не удалось сохранить команды в файл «%1»: %2</translation>
     </message>
 </context>
 <context>
@@ -601,7 +611,6 @@ You can set up the command in preferences.</source>
         <translation>Совпадение объектов</translation>
     </message>
     <message>
-        <location filename="../src/ui/commandwidget.ui" line="356"/>
         <source>Skips the command if the input text does not match this regular expression (leave empty to match everything).
 
 %2 through %9 in Command and Filter will be replaced with the captured texts.
@@ -612,15 +621,15 @@ Examples:
 - Match PDF filenames: \.pdf$
 - Match single character: ^.$
 - Match remote multimedia: ^http://.*\.(ogv|vlc|mp4|mp3)$</source>
-        <translation>Пропускает команду, если введённый текст не соответствует этому регулярному выражению (оставьте пустым, чтобы сопоставить всё).
+        <translation type="vanished">Пропускает команду, если введённый текст не соответствует этому регулярному выражению (оставьте пустым, чтобы сопоставить всё).
 
 От %2 до %9 в командах и фильтрах будут заменены захваченными текстами.
 
 Примеры:
 
 - Сопоставить URL: ^(https?|ftp)://
-- Сопоставить имена файлов PDF: \.pdf$ 
-- Сопоставить одиночный символ: ^.$ 
+- Сопоставить имена файлов PDF: \.pdf$
+- Сопоставить одиночный символ: ^.$
 - Сопоставить удалённое мультимедиа: ^http://.*\.(ogv|vlc|mp4|mp3)$</translation>
     </message>
     <message>
@@ -679,7 +688,7 @@ Leave empty to disable this.</source>
         <location filename="../src/ui/commandwidget.ui" line="108"/>
         <source>Script</source>
         <extracomment>Type of command; allows to extend scripting capabilities</extracomment>
-        <translation>СЦЕНАРИЙ</translation>
+        <translation>Сценарий</translation>
     </message>
     <message>
         <location filename="../src/ui/commandwidget.ui" line="121"/>
@@ -722,6 +731,29 @@ Leave empty to disable this.</source>
         <location filename="../src/ui/commandwidget.ui" line="56"/>
         <source>Type:</source>
         <translation>Тип:</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/commandwidget.ui" line="356"/>
+        <source>Skips the command if the input text does not match this regular expression (leave empty to match everything).
+
+%2 through %9 (or argument[1] and up in script) in Command and Filter will be replaced with the captured texts.
+
+Examples:
+
+- Match URL: ^(https?|ftp)://
+- Match PDF filenames: \.pdf$
+- Match single character: ^.$
+- Match remote multimedia: ^http://.*\.(ogv|vlc|mp4|mp3)$</source>
+        <translation>Пропускает команду, если входной текст не соответствует этому регулярному выражению (оставьте пустым, чтобы соответствовать всему).
+
+От %2 до %9 (или аргумент[1] и выше в сценарии) в Команде и Фильтре будут заменены на захваченные тексты.
+
+Примеры:
+
+- Соответствие адреса: ^(https?|ftp)://
+- Соответствие имён файлов PDF: \.pdf$
+- Соответствие одиночного символа: ^.$
+- Соответствие внешнего мультимедиа: ^http://.*\.(ogv|vlc|mp4|mp3)$</translation>
     </message>
     <message>
         <location filename="../src/ui/commandwidget.ui" line="435"/>
@@ -960,55 +992,55 @@ Note: If this is applied automatically, no other automatic commands are executed
         <translation>Предварительный просмотр:</translation>
     </message>
     <message>
-        <location filename="../src/gui/configtabappearance.cpp" line="476"/>
+        <location filename="../src/gui/configtabappearance.cpp" line="472"/>
         <source>item</source>
         <comment>Search expression in preview in Appearance tab.</comment>
         <translation>объект</translation>
     </message>
     <message>
-        <location filename="../src/gui/configtabappearance.cpp" line="478"/>
+        <location filename="../src/gui/configtabappearance.cpp" line="474"/>
         <source>Search string is %1.</source>
         <translation>Строка поиска %1.</translation>
     </message>
     <message>
-        <location filename="../src/gui/configtabappearance.cpp" line="479"/>
+        <location filename="../src/gui/configtabappearance.cpp" line="475"/>
         <source>Select an item and
 press F2 to edit.</source>
         <translation>Выберите объект и
 нажмите F2 для правки.</translation>
     </message>
     <message>
-        <location filename="../src/gui/configtabappearance.cpp" line="481"/>
+        <location filename="../src/gui/configtabappearance.cpp" line="477"/>
         <source>Example item %1</source>
         <translation>Образец объекта %1</translation>
     </message>
     <message>
-        <location filename="../src/gui/configtabappearance.cpp" line="486"/>
+        <location filename="../src/gui/configtabappearance.cpp" line="482"/>
         <source>Some random notes (Shift+F2 to edit)</source>
         <translation>Различные заметки (Shift+F2 для правки)</translation>
     </message>
     <message>
-        <location filename="../src/gui/configtabappearance.cpp" line="164"/>
+        <location filename="../src/gui/configtabappearance.cpp" line="160"/>
         <source>Open Theme File</source>
         <translation>Открыть файл темы</translation>
     </message>
     <message>
-        <location filename="../src/gui/configtabappearance.cpp" line="174"/>
+        <location filename="../src/gui/configtabappearance.cpp" line="170"/>
         <source>Save Theme File As</source>
         <translation>Сохранить файл темы как</translation>
     </message>
     <message>
-        <location filename="../src/gui/configtabappearance.cpp" line="193"/>
+        <location filename="../src/gui/configtabappearance.cpp" line="189"/>
         <source>No External Editor</source>
         <translation>Нет внешнего редактора</translation>
     </message>
     <message>
-        <location filename="../src/gui/configtabappearance.cpp" line="194"/>
+        <location filename="../src/gui/configtabappearance.cpp" line="190"/>
         <source>Set external editor command first!</source>
         <translation>Сначала укажите команду внешнего редактора!</translation>
     </message>
     <message>
-        <location filename="../src/gui/configtabappearance.cpp" line="394"/>
+        <location filename="../src/gui/configtabappearance.cpp" line="390"/>
         <source>Abc</source>
         <comment>Preview text for font settings in appearance dialog</comment>
         <translation>Абв</translation>
@@ -1082,82 +1114,145 @@ press F2 to edit.</source>
         <translation>З&amp;апускать автоматически</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabgeneral.ui" line="156"/>
         <source>Support for Vi navigation keys (H, J, K, L and more), slash (/) key to search</source>
-        <translation>Поддержка навигационных клавиш Vi (H, J, K, L и другие), поиск клавишей косой черты (/)</translation>
+        <translation type="vanished">Поддержка навигационных клавиш Vi (H, J, K, L и другие), поиск клавишей косой черты (/)</translation>
+    </message>
+    <message>
+        <source>&amp;Vi style navigation</source>
+        <translation type="vanished">&amp;Стиль навигации Vi</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtabgeneral.ui" line="156"/>
+        <source>Prevent capturing app windows in screenshots and recordings</source>
+        <translation>Предотвращать захват окон приложений в скриншотах и записях</translation>
     </message>
     <message>
         <location filename="../src/ui/configtabgeneral.ui" line="159"/>
-        <source>&amp;Vi style navigation</source>
-        <translation>&amp;Стиль навигации Vi</translation>
+        <source>&amp;Hide from screenshots and recordings</source>
+        <translation>&amp;Скрывать для скриншотов и записей</translation>
     </message>
     <message>
         <location filename="../src/ui/configtabgeneral.ui" line="166"/>
+        <source>Encrypt tab data on disk (requires password to be set)</source>
+        <translation>Шифровать данные вкладок на диске (требуется установка пароля)</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtabgeneral.ui" line="169"/>
+        <source>Encrypt &amp;Tabs</source>
+        <translation>Шифровать &amp;вкладки</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtabgeneral.ui" line="176"/>
+        <source>Use an available external key store for the encryption password (Windows Credential Store, macOS Keychain, GNOME Keyring, KWallet)</source>
+        <translation>Использовать доступное внешнее хранилище ключей для пароля шифрования (хранилище учётных данных Windows, связка ключей macOS, связка ключей GNOME, KWallet)</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtabgeneral.ui" line="179"/>
+        <source>&amp;Use external key store</source>
+        <translation>&amp;Использовать внешнее хранилище ключей</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtabgeneral.ui" line="204"/>
+        <source>Change the password used to encrypt tab data</source>
+        <translation>Изменить пароль, используемый для шифрования данных вкладок</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtabgeneral.ui" line="207"/>
+        <source>Change Encryption &amp;Password...</source>
+        <translation>Сменить &amp;пароль шифрования…</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtabgeneral.ui" line="234"/>
+        <source>Navigation style / Keymap:</source>
+        <translation>Стиль навигации / карта клавиш:</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtabgeneral.ui" line="244"/>
+        <source>Support for Vi navigation (keys H, J, K, L, / and more) and Emacs navigation (Ctrl+N, P, V and more)</source>
+        <translation>Поддержка навигации в Vi (клавиши H, J, K, L, / и другие) и навигации в Emacs (Ctrl+N, P, V и другие)</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtabgeneral.ui" line="248"/>
+        <source>Default</source>
+        <translation>По умолчанию</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtabgeneral.ui" line="253"/>
+        <source>Vi</source>
+        <translation>Vi</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtabgeneral.ui" line="258"/>
+        <source>Emacs</source>
+        <translation>Emacs</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtabgeneral.ui" line="281"/>
         <source>Save and restore history of item filters</source>
         <translation>Сохранение и восстановление истории фильтров объекта</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabgeneral.ui" line="169"/>
+        <location filename="../src/ui/configtabgeneral.ui" line="284"/>
         <source>Save Filter History</source>
         <translation>Сохранять историю фильтра</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabgeneral.ui" line="176"/>
+        <location filename="../src/ui/configtabgeneral.ui" line="291"/>
         <source>Automatically show popup to complete function, type and variable names in commands</source>
         <translation>Автоматически отображать всплывающие окна для завершения ввода функций, типов и переменных в командах</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabgeneral.ui" line="179"/>
+        <location filename="../src/ui/configtabgeneral.ui" line="294"/>
         <source>Auto-complete Commands</source>
         <translation>Автодополнение команд</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabgeneral.ui" line="186"/>
+        <location filename="../src/ui/configtabgeneral.ui" line="301"/>
         <source>Clipboard Manipulation</source>
         <translation>Управление буфером обмена</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabgeneral.ui" line="198"/>
+        <location filename="../src/ui/configtabgeneral.ui" line="313"/>
         <source>Allow to paste copied content the same way as mouse selections (usually by pressing middle mouse button)</source>
         <translation>Разрешить вставку скопированного таким же образом, как и выделение мышью (обычно по нажатии средней кнопки мыши)</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabgeneral.ui" line="201"/>
+        <location filename="../src/ui/configtabgeneral.ui" line="316"/>
         <source>(&amp;3) Paste clipboard with mouse</source>
         <translation>(&amp;3) Вставить буфер обмена с помощью мыши</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabgeneral.ui" line="208"/>
+        <location filename="../src/ui/configtabgeneral.ui" line="323"/>
         <source>Allow to paste mouse selections using shortcut (usually Ctrl+V or Shift+Insert)</source>
         <translation>Разрешить вставку выбора мыши с помощью сочетания клавиш (обычно Ctrl+V или Shift+Insert)</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabgeneral.ui" line="211"/>
+        <location filename="../src/ui/configtabgeneral.ui" line="326"/>
         <source>(&amp;4) Paste mouse selection with keyboard</source>
         <translation>(&amp;4) Вставить выбранное мышью при помощи клавиатуры</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabgeneral.ui" line="218"/>
+        <location filename="../src/ui/configtabgeneral.ui" line="333"/>
         <source>Save clipboard in history</source>
         <translation>Сохранить буфер обмена в истории</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabgeneral.ui" line="221"/>
+        <location filename="../src/ui/configtabgeneral.ui" line="336"/>
         <source>(&amp;1) Store clipboard</source>
         <translation>(&amp;1) Хранилище буфера обмена</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabgeneral.ui" line="231"/>
+        <location filename="../src/ui/configtabgeneral.ui" line="346"/>
         <source>Save text selected with mouse (primary selection) in history</source>
         <translation>Сохранить текст, выбранный с помощью мыши (основной выбор), в истории</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabgeneral.ui" line="234"/>
+        <location filename="../src/ui/configtabgeneral.ui" line="349"/>
         <source>(&amp;2) Store text selected using mouse</source>
         <translation>(&amp;2) Сохранить текст, выбранный с помощью мыши</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabgeneral.ui" line="241"/>
+        <location filename="../src/ui/configtabgeneral.ui" line="356"/>
         <source>(&amp;5) Run automatic commands on selection</source>
         <translation>(&amp;5) Запускать автоматические команды при выборе</translation>
     </message>
@@ -1175,9 +1270,13 @@ press F2 to edit.</source>
         <translation>Максимум объектов в каждой вкладке</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="105"/>
         <source>&amp;Unload tab after an interval in minutes:</source>
-        <translation>&amp;Выгрузить вкладку после перерыва в минутах:</translation>
+        <translation type="vanished">&amp;Выгрузить вкладку после перерыва в минутах:</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtabhistory.ui" line="105"/>
+        <source>&amp;Unload tab after an interval:</source>
+        <translation>&amp;Выгружать вкладку через:</translation>
     </message>
     <message>
         <location filename="../src/ui/configtabhistory.ui" line="117"/>
@@ -1189,12 +1288,26 @@ Set to 0 not to unload tabs.</source>
 Установите 0, чтобы не выгружать вкладки.</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="144"/>
+        <location filename="../src/ui/configtabhistory.ui" line="147"/>
+        <source>Require password after an interval:</source>
+        <translation>Запрашивать пароль через:</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtabhistory.ui" line="159"/>
+        <source>Timeout in seconds for encrypted tabs to require password again.
+
+Set to 0 to disable globally.</source>
+        <translation>Тайм-аут в секундах для повторного запроса пароля для зашифрованных вкладок.
+
+Установите 0 для глобального отключения.</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtabhistory.ui" line="189"/>
         <source>External editor command (%&amp;1 is file to edit):</source>
         <translation>Команда внешнего редактора (%&amp;1 — файл для правки):</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="154"/>
+        <location filename="../src/ui/configtabhistory.ui" line="199"/>
         <source>External editor command (%1 is file to edit).
   Examples:
     gedit %1
@@ -1209,12 +1322,12 @@ Set to 0 not to unload tabs.</source>
     xterm -e vim %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="169"/>
+        <location filename="../src/ui/configtabhistory.ui" line="214"/>
         <source>Ta&amp;b for storing clipboard:</source>
         <translation>В&amp;кладка для хранения буфера обмена:</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="179"/>
+        <location filename="../src/ui/configtabhistory.ui" line="224"/>
         <source>Name of tab that will automatically store new clipboard content.
 
 Leave empty to disable automatic storing.</source>
@@ -1223,7 +1336,7 @@ Leave empty to disable automatic storing.</source>
 Оставьте пустым, чтобы отключить автоматическое запоминание.</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="193"/>
+        <location filename="../src/ui/configtabhistory.ui" line="238"/>
         <source>Leave unchecked for Return key to save edited item and Ctrl+Return create new line.
 
 Note: Edited items can be saved with F2 disregarding this option.</source>
@@ -1232,12 +1345,12 @@ Note: Edited items can be saved with F2 disregarding this option.</source>
 Примечание: изменённые объекты можно сохранить клавишей F2 независимо от этого параметра.</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="198"/>
+        <location filename="../src/ui/configtabhistory.ui" line="243"/>
         <source>Sa&amp;ve edited item with Ctrl+Return and create new line with Return key</source>
         <translation>Со&amp;хранять изменённый объект сочетанием Ctrl+Enter, создавать новую строку клавишей Enter</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="205"/>
+        <location filename="../src/ui/configtabhistory.ui" line="250"/>
         <source>Show single line description of each item.
 
 Use Item Preview to display whole items.</source>
@@ -1246,67 +1359,67 @@ Use Item Preview to display whole items.</source>
 Используйте предпросмотр, чтобы отобразить объекты целиком.</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="210"/>
+        <location filename="../src/ui/configtabhistory.ui" line="255"/>
         <source>Sho&amp;w simple items</source>
         <translation>Пока&amp;зать простые объекты</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="217"/>
+        <location filename="../src/ui/configtabhistory.ui" line="262"/>
         <source>Enable searching for numbers, otherwise pressing a digit key activates item on that position</source>
         <translation>Включить поиск номеров, иначе нажатие цифровой клавиши активирует объект в этом положении</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="220"/>
+        <location filename="../src/ui/configtabhistory.ui" line="265"/>
         <source>S&amp;earch for numbers</source>
         <translation>&amp;Поиск цифр</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="230"/>
+        <location filename="../src/ui/configtabhistory.ui" line="275"/>
         <source>Activate item with single click</source>
         <translation>Активировать объект по одному нажатию</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="237"/>
+        <location filename="../src/ui/configtabhistory.ui" line="282"/>
         <source>After item is activated (double-click or Enter key), copy it to clipboard and ...</source>
         <translation>После активации объекта (двойным нажатием или клавишей Enter) скопировать его в буфер обмена и...</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="243"/>
+        <location filename="../src/ui/configtabhistory.ui" line="288"/>
         <source>Move item to the top of the list after it is activated</source>
         <translation>Переместить объект в верхнюю часть списка после его активации</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="246"/>
+        <location filename="../src/ui/configtabhistory.ui" line="291"/>
         <source>Move item to the t&amp;op</source>
         <translation>Переместить объект в &amp;начало</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="253"/>
+        <location filename="../src/ui/configtabhistory.ui" line="298"/>
         <source>Close main window after item is activated</source>
         <translation>Закрыть основное окно по активации объекта</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="256"/>
+        <location filename="../src/ui/configtabhistory.ui" line="301"/>
         <source>&amp;Close main window</source>
         <translation>&amp;Закрыть главное окно</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="263"/>
+        <location filename="../src/ui/configtabhistory.ui" line="308"/>
         <source>Focus last window after item is activated</source>
         <translation>Фокус на последнем окне по активации объекта</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="266"/>
+        <location filename="../src/ui/configtabhistory.ui" line="311"/>
         <source>&amp;Focus last window</source>
         <translation>&amp;Фокус на последнем окне</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="273"/>
+        <location filename="../src/ui/configtabhistory.ui" line="318"/>
         <source>Paste to current window after item is activated</source>
         <translation>Вставить в текущее окно по активации объекта</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtabhistory.ui" line="276"/>
+        <location filename="../src/ui/configtabhistory.ui" line="321"/>
         <source>&amp;Paste to current window</source>
         <translation>&amp;Вставить в текущее окно</translation>
     </message>
@@ -1345,36 +1458,56 @@ Use Item Preview to display whole items.</source>
     </message>
     <message>
         <location filename="../src/ui/configtablayout.ui" line="95"/>
+        <source>Drag empty area to move the window, drag bottom right corner to resize it</source>
+        <translation>Перетащите пустую область, чтобы переместить окно; перетащите правый нижний угол, чтобы изменить его размер</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtablayout.ui" line="98"/>
+        <source>Hide window &amp;title and frame</source>
+        <translation>Скрыть &amp;заголовок окна и рамку</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtablayout.ui" line="105"/>
+        <source>Hide menu bar (Alt or the context menu shows it temporarily)</source>
+        <translation>Скрыть строку меню (Alt или контекстное меню временно показывают её)</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtablayout.ui" line="108"/>
+        <source>Hide m&amp;enu bar</source>
+        <translation>Скрыть строку м&amp;еню</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/configtablayout.ui" line="115"/>
         <source>Hide main window when closed</source>
         <translation>Скрыть главное окно при закрытии</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtablayout.ui" line="98"/>
+        <location filename="../src/ui/configtablayout.ui" line="118"/>
         <source>Hide &amp;main window</source>
         <translation>Скрыть &amp;главное окно</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtablayout.ui" line="108"/>
+        <location filename="../src/ui/configtablayout.ui" line="128"/>
         <source>Layout and Transparency</source>
         <translation>Оформление и прозрачность</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtablayout.ui" line="117"/>
+        <location filename="../src/ui/configtablayout.ui" line="137"/>
         <source>Show tree with tabs instead of tab bar</source>
         <translation>Показать дерево с вкладками вместо панели вкладок</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtablayout.ui" line="120"/>
+        <location filename="../src/ui/configtablayout.ui" line="140"/>
         <source>Tab T&amp;ree</source>
         <translation>&amp;Дерево вкладок</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtablayout.ui" line="127"/>
+        <location filename="../src/ui/configtablayout.ui" line="147"/>
         <source>&amp;Focused transparency:</source>
         <translation>&amp;Прозрачность в фокусе:</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtablayout.ui" line="139"/>
+        <location filename="../src/ui/configtablayout.ui" line="159"/>
         <source>Transparency of main window if focused.
 
 Note: This is not supported on all systems.</source>
@@ -1383,12 +1516,12 @@ Note: This is not supported on all systems.</source>
 Примечание: Поддерживается не на всех устройствах.</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtablayout.ui" line="169"/>
+        <location filename="../src/ui/configtablayout.ui" line="189"/>
         <source>&amp;Unfocused transparency:</source>
         <translation>Прозрачность &amp;без фокуса:</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtablayout.ui" line="181"/>
+        <location filename="../src/ui/configtablayout.ui" line="201"/>
         <source>Transparency of main window if unfocused.
 
 Note: This is not supported on all systems.</source>
@@ -1397,12 +1530,12 @@ Note: This is not supported on all systems.</source>
 Примечание: Поддерживается не на всех устройствах.</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtablayout.ui" line="211"/>
+        <location filename="../src/ui/configtablayout.ui" line="231"/>
         <source>Show number of items in tabs</source>
         <translation>Показать число объектов во вкладках</translation>
     </message>
     <message>
-        <location filename="../src/ui/configtablayout.ui" line="214"/>
+        <location filename="../src/ui/configtablayout.ui" line="234"/>
         <source>Sho&amp;w Item Count</source>
         <translation>Пока&amp;зать число объектов</translation>
     </message>
@@ -1612,72 +1745,72 @@ Set to 0 to disable.</source>
         <translation type="vanished">Настройки</translation>
     </message>
     <message>
-        <location filename="../src/gui/configurationmanager.cpp" line="159"/>
+        <location filename="../src/gui/configurationmanager.cpp" line="162"/>
         <source>General</source>
         <translation>Общее</translation>
     </message>
     <message>
-        <location filename="../src/gui/configurationmanager.cpp" line="160"/>
+        <location filename="../src/gui/configurationmanager.cpp" line="163"/>
         <source>Layout</source>
         <translation>Оформление</translation>
     </message>
     <message>
-        <location filename="../src/gui/configurationmanager.cpp" line="161"/>
+        <location filename="../src/gui/configurationmanager.cpp" line="164"/>
         <source>History</source>
         <translation>История</translation>
     </message>
     <message>
-        <location filename="../src/gui/configurationmanager.cpp" line="162"/>
+        <location filename="../src/gui/configurationmanager.cpp" line="165"/>
         <source>Tray</source>
         <translation>Трей</translation>
     </message>
     <message>
-        <location filename="../src/gui/configurationmanager.cpp" line="163"/>
+        <location filename="../src/gui/configurationmanager.cpp" line="166"/>
         <source>Notifications</source>
         <translation>Уведомления</translation>
     </message>
     <message>
-        <location filename="../src/gui/configurationmanager.cpp" line="164"/>
+        <location filename="../src/gui/configurationmanager.cpp" line="167"/>
         <source>Tabs</source>
         <translation>Вкладки</translation>
     </message>
     <message>
-        <location filename="../src/gui/configurationmanager.cpp" line="165"/>
+        <location filename="../src/gui/configurationmanager.cpp" line="168"/>
         <source>Items</source>
         <translation>Объекты</translation>
     </message>
     <message>
-        <location filename="../src/gui/configurationmanager.cpp" line="166"/>
+        <location filename="../src/gui/configurationmanager.cpp" line="169"/>
         <source>Shortcuts</source>
         <translation>Быстрый доступ</translation>
     </message>
     <message>
-        <location filename="../src/gui/configurationmanager.cpp" line="167"/>
+        <location filename="../src/gui/configurationmanager.cpp" line="170"/>
         <source>Appearance</source>
         <translation>Вид</translation>
     </message>
     <message>
-        <location filename="../src/gui/configurationmanager.cpp" line="441"/>
+        <location filename="../src/gui/configurationmanager.cpp" line="475"/>
         <source>Invalid value for option &quot;%1&quot;</source>
         <translation>Неверное значение для параметра «%1»</translation>
     </message>
     <message>
-        <location filename="../src/gui/configurationmanager.cpp" line="486"/>
+        <location filename="../src/gui/configurationmanager.cpp" line="520"/>
         <source>Reset preferences?</source>
         <translation>Сбросить настройки?</translation>
     </message>
     <message>
-        <location filename="../src/gui/configurationmanager.cpp" line="487"/>
+        <location filename="../src/gui/configurationmanager.cpp" line="521"/>
         <source>This action will reset all your preferences (in all tabs) to default values.&lt;br /&gt;&lt;br /&gt;Do you really want to &lt;strong&gt;reset all preferences&lt;/strong&gt;?</source>
         <translation>Это действие сбросит все ваши настройки (во всех вкладках) на значений по умолчанию.&lt;br /&gt;&lt;br /&gt;Вы действительно хотите &lt;strong&gt;сбросить все настройки&lt;/strong&gt;?</translation>
     </message>
     <message>
-        <location filename="../src/gui/configurationmanager.cpp" line="589"/>
+        <location filename="../src/gui/configurationmanager.cpp" line="625"/>
         <source>Restart Required</source>
         <translation>Требуется перезапуск</translation>
     </message>
     <message>
-        <location filename="../src/gui/configurationmanager.cpp" line="590"/>
+        <location filename="../src/gui/configurationmanager.cpp" line="626"/>
         <source>Language will be changed after application is restarted.</source>
         <translation>Язык будет изменён после перезапуска приложения.</translation>
     </message>
@@ -1690,7 +1823,7 @@ Set to 0 to disable.</source>
 <context>
     <name>FileWatcher</name>
     <message>
-        <location filename="../plugins/itemsync/filewatcher.cpp" line="873"/>
+        <location filename="../plugins/itemsync/filewatcher.cpp" line="795"/>
         <source>Failed to create synchronization directory &quot;%1&quot;!</source>
         <translation>Не удалось создать каталог синхронизации «%1»!</translation>
     </message>
@@ -1721,22 +1854,22 @@ Set to 0 to disable.</source>
 <context>
     <name>IconSelectDialog</name>
     <message>
-        <location filename="../src/gui/iconselectdialog.cpp" line="151"/>
+        <location filename="../src/gui/iconselectdialog.cpp" line="150"/>
         <source>Select Icon</source>
         <translation>Выберите значок</translation>
     </message>
     <message>
-        <location filename="../src/gui/iconselectdialog.cpp" line="158"/>
+        <location filename="../src/gui/iconselectdialog.cpp" line="157"/>
         <source>Browse...</source>
         <translation>Обзор...</translation>
     </message>
     <message>
-        <location filename="../src/gui/iconselectdialog.cpp" line="204"/>
+        <location filename="../src/gui/iconselectdialog.cpp" line="203"/>
         <source>Open Icon file</source>
         <translation>Открыть файл значка</translation>
     </message>
     <message>
-        <location filename="../src/gui/iconselectdialog.cpp" line="205"/>
+        <location filename="../src/gui/iconselectdialog.cpp" line="204"/>
         <source>Image Files (*.png *.jpg *.jpeg *.bmp *.ico *.svg)</source>
         <translation>Файлы изображений (*.png *.jpg *.jpeg *.bmp *.ico *.svg)</translation>
     </message>
@@ -1775,7 +1908,7 @@ Set to 0 to disable.</source>
         <translation type="vanished">Команда редактора: %1</translation>
     </message>
     <message>
-        <location filename="../src/item/itemeditor.cpp" line="139"/>
+        <location filename="../src/item/itemeditor.cpp" line="140"/>
         <source>Editor command failed (see logs)</source>
         <translation>Ошибка команды редактора (см. журнал)</translation>
     </message>
@@ -1860,104 +1993,104 @@ Set to 0 to disable.</source>
         <translation type="vanished">Для совместного использования зашифрованных объектов на другом компьютере или сеансе вам понадобятся общедоступные и секретные файлы ключей:&lt;ul&gt;&lt;li&gt; %1&lt;/li&gt;&lt;li&gt; %2&lt;br /&gt; (Сохраните этот секретный ключ в безопасном месте.)&lt;/li&gt;&lt;/ul&gt;</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="758"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="741"/>
         <source>GnuPG must be installed to view encrypted tabs.</source>
         <translation>GnuPG должен быть установлен для просмотра зашифрованных вкладок.</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="863"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="835"/>
         <source>Encrypt (needs GnuPG)</source>
         <translation>Шифрование (требуется GnuPG)</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="869"/>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="880"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="841"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="852"/>
         <source>Ctrl+L</source>
         <translation>Ctrl+L</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="874"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="846"/>
         <source>Decrypt</source>
         <translation>Расшифровать</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="885"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="857"/>
         <source>Decrypt and Copy</source>
         <translation>Расшифровать и скопировать</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="890"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="862"/>
         <source>Ctrl+Shift+L</source>
         <translation>Ctrl+Shift+L</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="895"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="867"/>
         <source>Decrypt and Paste</source>
         <translation>Расшифровать и вставить</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="900"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="872"/>
         <source>Enter</source>
         <translation>Enter</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="969"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="941"/>
         <source>Error: %1</source>
         <translation>Ошибка: %1</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="957"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="929"/>
         <source>Failed to generate keys.</source>
         <translation>Ошибка генерации ключей.</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="683"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="666"/>
         <source>To share encrypted items on other computer or session, you&apos;ll need these secret key files (keep them in a safe place):</source>
         <translation>Чтобы получить доступ к шифрованным объектам на другом компьютере или в ином сеансе, вам понадобятся эти файлы секретных ключей (храните их в надёжном месте):</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="974"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="946"/>
         <source>Done</source>
         <translation>Готово</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="990"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="962"/>
         <source>Creating new keys (this may take a few minutes)...</source>
         <translation>Создаются новые ключи (может занять несколько минут)...</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="991"/>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="994"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="963"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="966"/>
         <source>Cancel</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="993"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="965"/>
         <source>Setting new password...</source>
         <translation>Введите новый пароль...</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="996"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="968"/>
         <source>Encryption keys &lt;strong&gt;must be generated&lt;/strong&gt; before item encryption can be used.</source>
         <translation>Ключи шифрования &lt;strong&gt;должны быть сгенерированы&lt;/strong&gt; перед использованием шифрования объекта.</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="999"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="971"/>
         <source>Generate New Keys...</source>
         <translation>Генерировать новые ключи...</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="1001"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="973"/>
         <source>Change Password...</source>
         <translation>Смена пароля...</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="404"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="390"/>
         <source>Encryption failed!</source>
         <translation>Шифрование не удалось!</translation>
     </message>
     <message>
-        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="1007"/>
+        <location filename="../plugins/itemencrypted/itemencrypted.cpp" line="979"/>
         <source>Decryption failed!</source>
         <translation>Расшифровка не удалась!</translation>
     </message>
@@ -2000,12 +2133,12 @@ Set to 0 to disable.</source>
 <context>
     <name>ItemFactory</name>
     <message>
-        <location filename="../src/item/itemfactory.cpp" line="75"/>
+        <location filename="../src/item/itemfactory.cpp" line="80"/>
         <source>Corrupted Tab</source>
         <translation>Повреждённая вкладка</translation>
     </message>
     <message>
-        <location filename="../src/item/itemfactory.cpp" line="76"/>
+        <location filename="../src/item/itemfactory.cpp" line="81"/>
         <source>Not all items in the tab &lt;strong&gt;%1&lt;/strong&gt; were loaded successfully. Do you still want to load the tab and potentially lose some items?</source>
         <translation>Не все элементы вкладки &lt;strong&gt;%1&lt;/strong&gt; были успешно загружены. Всё ещё хотите загрузить вкладку и возможно потерять некоторые элементы?</translation>
     </message>
@@ -2100,12 +2233,12 @@ Set to 0 to disable.</source>
 <context>
     <name>ItemNotesLoader</name>
     <message>
-        <location filename="../plugins/itemnotes/itemnotes.h" line="63"/>
+        <location filename="../plugins/itemnotes/itemnotes.h" line="78"/>
         <source>Notes</source>
         <translation>Заметки</translation>
     </message>
     <message>
-        <location filename="../plugins/itemnotes/itemnotes.h" line="65"/>
+        <location filename="../plugins/itemnotes/itemnotes.h" line="80"/>
         <source>Display notes for items.</source>
         <translation>Отображать заметки для объектов.</translation>
     </message>
@@ -2186,32 +2319,32 @@ Set to 0 to disable.</source>
 <context>
     <name>ItemPinnedLoader</name>
     <message>
-        <location filename="../plugins/itempinned/itempinned.cpp" line="182"/>
+        <location filename="../plugins/itempinned/itempinned.cpp" line="173"/>
         <source>Cannot Remove Pinned Items</source>
         <translation>Не удаётся удалить закреплённые объекты</translation>
     </message>
     <message>
-        <location filename="../plugins/itempinned/itempinned.cpp" line="183"/>
+        <location filename="../plugins/itempinned/itempinned.cpp" line="174"/>
         <source>Unpin items first to remove them.</source>
         <translation>Открепите объекты перед удалением.</translation>
     </message>
     <message>
-        <location filename="../plugins/itempinned/itempinned.cpp" line="347"/>
+        <location filename="../plugins/itempinned/itempinned.cpp" line="325"/>
         <source>Pin</source>
         <translation>Закрепить</translation>
     </message>
     <message>
-        <location filename="../plugins/itempinned/itempinned.cpp" line="355"/>
+        <location filename="../plugins/itempinned/itempinned.cpp" line="333"/>
         <source>Unpin</source>
         <translation>Открепить</translation>
     </message>
     <message>
-        <location filename="../plugins/itempinned/itempinned.h" line="83"/>
+        <location filename="../plugins/itempinned/itempinned.h" line="98"/>
         <source>Pinned Items</source>
         <translation>Закреплённые объекты</translation>
     </message>
     <message>
-        <location filename="../plugins/itempinned/itempinned.h" line="86"/>
+        <location filename="../plugins/itempinned/itempinned.h" line="101"/>
         <source>&lt;p&gt;Pin items to lock them in current row and avoid deletion (unless unpinned).&lt;/p&gt;&lt;p&gt;Provides shortcuts and scripting functionality.&lt;/p&gt;</source>
         <translation>&lt;p&gt;Закрепить объекты, чтобы заблокировать их в текущей строке и избежать удаления (пока они не откреплены).&lt;/p&gt;&lt;p&gt;Обеспечивает функциональность сочетаний клавиш и сценариев.&lt;/p&gt;</translation>
     </message>
@@ -2225,12 +2358,12 @@ Set to 0 to disable.</source>
         <translation>Обзор...</translation>
     </message>
     <message>
-        <location filename="../plugins/itemsync/itemsync.cpp" line="762"/>
+        <location filename="../plugins/itemsync/itemsync.cpp" line="724"/>
         <source>Open Directory for Synchronization</source>
         <translation>Открыть каталог для синхронизации</translation>
     </message>
     <message>
-        <location filename="../plugins/itemsync/itemsync.cpp" line="776"/>
+        <location filename="../plugins/itemsync/itemsync.cpp" line="737"/>
         <source>Failed to create synchronization directory</source>
         <translation>Не удалось создать каталог синхронизации</translation>
     </message>
@@ -2253,12 +2386,12 @@ Set to 0 to disable.</source>
         <translation>Не удалось синхронизировать вкладку «%1» с каталогом «%2»!</translation>
     </message>
     <message>
-        <location filename="../plugins/itemsync/itemsync.cpp" line="462"/>
+        <location filename="../plugins/itemsync/itemsync.cpp" line="461"/>
         <source>Remove Items?</source>
         <translation>Удалить объекты?</translation>
     </message>
     <message>
-        <location filename="../plugins/itemsync/itemsync.cpp" line="463"/>
+        <location filename="../plugins/itemsync/itemsync.cpp" line="462"/>
         <source>Do you really want to &lt;strong&gt;remove items and associated files&lt;/strong&gt;?</source>
         <translation>Вы действительно хотите &lt;strong&gt;удалить объекты и связанные файлы&lt;/strong&gt;?</translation>
     </message>
@@ -2329,43 +2462,46 @@ Set to 0 to disable.</source>
 <context>
     <name>ItemTagsLoader</name>
     <message>
-        <location filename="../plugins/itemtags/itemtags.cpp" line="145"/>
+        <location filename="../plugins/itemtags/itemtags.cpp" line="140"/>
         <source>Add a Tag</source>
         <translation>Добавить метку</translation>
     </message>
     <message>
-        <location filename="../plugins/itemtags/itemtags.cpp" line="150"/>
+        <location filename="../plugins/itemtags/itemtags.cpp" line="145"/>
         <source>Remove a Tag</source>
         <translation>Удалить метку</translation>
     </message>
     <message>
-        <location filename="../plugins/itemtags/itemtags.cpp" line="171"/>
         <source>Tag as %1</source>
-        <translation>Пометить как %1</translation>
+        <translation type="vanished">Пометить как %1</translation>
     </message>
     <message>
-        <location filename="../plugins/itemtags/itemtags.cpp" line="178"/>
         <source>Remove tag %1</source>
-        <translation>Удалить метку %1</translation>
+        <translation type="vanished">Удалить метку %1</translation>
     </message>
     <message>
-        <location filename="../plugins/itemtags/itemtags.cpp" line="611"/>
+        <location filename="../plugins/itemtags/itemtags.cpp" line="166"/>
+        <source>Toggle Tag %1</source>
+        <translation>Переключить метку %1</translation>
+    </message>
+    <message>
+        <location filename="../plugins/itemtags/itemtags.cpp" line="597"/>
         <source>Cannot Remove Items With a Locked Tag</source>
         <translation>Невозможно удалить объекты с заблокированной меткой</translation>
     </message>
     <message>
-        <location filename="../plugins/itemtags/itemtags.cpp" line="612"/>
+        <location filename="../plugins/itemtags/itemtags.cpp" line="598"/>
         <source>Untag items first to remove them.</source>
         <translation>Снимите метки с объектов перед тем, как удалить их.</translation>
     </message>
     <message>
-        <location filename="../plugins/itemtags/itemtags.cpp" line="748"/>
+        <location filename="../plugins/itemtags/itemtags.cpp" line="711"/>
         <source>Important</source>
         <comment>Tag name for example command</comment>
         <translation>Важный</translation>
     </message>
     <message>
-        <location filename="../plugins/itemtags/itemtags.cpp" line="772"/>
+        <location filename="../plugins/itemtags/itemtags.cpp" line="741"/>
         <source>Clear all tags</source>
         <translation>Очистить все метки</translation>
     </message>
@@ -2377,7 +2513,7 @@ Set to 0 to disable.</source>
     <message>
         <location filename="../plugins/itemtags/itemtags.h" line="113"/>
         <source>Display tags for items.</source>
-        <translation>Отображать теги для объектов.</translation>
+        <translation>Отображать метки для объектов.</translation>
     </message>
 </context>
 <context>
@@ -2385,12 +2521,12 @@ Set to 0 to disable.</source>
     <message>
         <location filename="../plugins/itemtags/itemtagssettings.ui" line="17"/>
         <source>Menu items for adding and removing custom tags can be added and customized in Commands dialog.</source>
-        <translation>Элементы меню для добавления и удаления настраиваемых тегов можно добавлять и настраивать в диалоговом окне «Команды».</translation>
+        <translation>Элементы меню для добавления и удаления настраиваемых меток можно добавлять и настраивать в диалоге «Команды».</translation>
     </message>
     <message>
         <location filename="../plugins/itemtags/itemtagssettings.ui" line="27"/>
         <source>More info is available on &lt;a href=&quot;https://copyq.readthedocs.io/en/latest/tags.html&quot;&gt;wiki page&lt;/a&gt;.</source>
-        <translation>Дополнительная информация доступна на &lt;a href=&quot;https://copyq.readthedocs.io/en/latest/tags.html&quot;&gt;странице wiki&lt;/a&gt;.</translation>
+        <translation>Подробности доступны на &lt;a href=&quot;https://copyq.readthedocs.io/en/latest/tags.html&quot;&gt;вики-странице&lt;/a&gt;.</translation>
     </message>
     <message>
         <location filename="../plugins/itemtags/itemtagssettings.ui" line="38"/>
@@ -2497,63 +2633,62 @@ Set to 0 to disable.</source>
         <translation type="vanished">CopyQ</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="716"/>
+        <location filename="../src/gui/mainwindow.cpp" line="926"/>
         <source>Exit?</source>
         <translation>Выйти?</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="717"/>
+        <location filename="../src/gui/mainwindow.cpp" line="927"/>
         <source>Do you want to &lt;strong&gt;exit&lt;/strong&gt; CopyQ?</source>
         <translation>Вы хотите &lt;strong&gt;выйти&lt;/strong&gt; из CopyQ?</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="781"/>
+        <location filename="../src/gui/mainwindow.cpp" line="985"/>
         <source>&amp;File</source>
         <translation>&amp;Файл</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="827"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1031"/>
         <source>&amp;Edit</source>
         <translation>&amp;Правка</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="851"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1055"/>
         <source>&amp;Item</source>
         <translation>&amp;Объект</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="855"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1059"/>
         <source>&amp;Tabs</source>
         <translation>&amp;Вкладки</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="880"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1084"/>
         <source>&amp;Help</source>
         <translation>&amp;Справка</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="2109"/>
-        <location filename="../src/gui/mainwindow.cpp" line="2231"/>
+        <location filename="../src/gui/mainwindow.cpp" line="512"/>
         <source>Options for Import</source>
         <translation>Параметры импорта</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="678"/>
+        <location filename="../src/gui/mainwindow.cpp" line="862"/>
         <source>&amp;Show/Hide</source>
         <translation>&amp;Показать/скрыть</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="3875"/>
+        <location filename="../src/gui/mainwindow.cpp" line="4480"/>
         <source>Options for Export</source>
         <translation>Параметры экспорта</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="3896"/>
+        <location filename="../src/gui/mainwindow.cpp" line="4511"/>
         <source>Export Error</source>
         <translation>Ошибка экспорта</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="3897"/>
+        <location filename="../src/gui/mainwindow.cpp" line="4512"/>
         <source>Failed to export file %1!</source>
         <translation>Не удалось экспортировать файл %1!</translation>
     </message>
@@ -2566,79 +2701,113 @@ Set to 0 to disable.</source>
         <translation type="vanished">&amp;Отключить сохранение буфера обмена</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="2519"/>
+        <location filename="../src/gui/mainwindow.cpp" line="2837"/>
         <source>CopyQ Error</source>
         <comment>Notification error message title</comment>
         <translation>Ошибка CopyQ</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="905"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1113"/>
         <source>&amp;New Tab</source>
         <translation>&amp;Новая вкладка</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="907"/>
+        <location filename="../src/gui/mainwindow.cpp" line="532"/>
+        <source>Encryption Unavailable</source>
+        <translation>Шифрование недоступно</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/mainwindow.cpp" line="533"/>
+        <source>Encryption is not available (see logs for details).
+
+It will be possible to encrypt and decrypt tab data.</source>
+        <translation>Шифрование недоступно (подробности см. в журналах).
+
+Будет возможно шифровать и расшифровывать данные вкладок.</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/mainwindow.cpp" line="595"/>
+        <source>Import Password</source>
+        <translation>Пароль импорта</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/mainwindow.cpp" line="596"/>
+        <source>Enter password for import:</source>
+        <translation>Введите пароль для импорта:</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/mainwindow.cpp" line="619"/>
+        <source>Export Password</source>
+        <translation>Пароль экспорта</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/mainwindow.cpp" line="620"/>
+        <source>Enter password for export (empty for no encryption):</source>
+        <translation>Введите пароль для экспорта (пусто — без шифрования):</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/mainwindow.cpp" line="1115"/>
         <source>Rename &amp;Group %1</source>
         <translation>Переименовать &amp;группу %1</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="909"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1117"/>
         <source>Re&amp;name Tab %1</source>
         <translation>Переиме&amp;новать вкладку %1</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="911"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1119"/>
         <source>Re&amp;move Tab %1</source>
         <translation>У&amp;далить вкладку %1</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="913"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1121"/>
         <source>Remove Group %1</source>
         <translation>Удалить группу %1</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="915"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1123"/>
         <source>&amp;Change Tab Icon</source>
         <translation>С&amp;менить значок вкладки</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="958"/>
+        <location filename="../src/gui/mainwindow.cpp" line="1166"/>
         <source>&amp;Clipboard: %1</source>
         <comment>Tray menu clipboard item format</comment>
         <translation>&amp;Буфер обмена: %1</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="331"/>
+        <location filename="../src/gui/mainwindow.cpp" line="305"/>
         <source>CopyQ Items (*.cpq)</source>
         <translation>Объекты CopyQ (*.cpq)</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="3989"/>
+        <location filename="../src/gui/mainwindow.cpp" line="4620"/>
         <source>Import Error</source>
         <translation>Ошибка импорта</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="3990"/>
+        <location filename="../src/gui/mainwindow.cpp" line="4621"/>
         <source>Failed to import file %1!</source>
         <translation>Не удалось импортировать файл %1!</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="4175"/>
+        <location filename="../src/gui/mainwindow.cpp" line="4799"/>
         <source>Remove All Tabs in Group?</source>
         <translation>Удалить все вкладки в группе?</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="4176"/>
+        <location filename="../src/gui/mainwindow.cpp" line="4800"/>
         <source>Do you want to remove &lt;strong&gt;all tabs&lt;/strong&gt; in group &lt;strong&gt;%1&lt;/strong&gt;?</source>
         <translation>Вы хотите удалить &lt;strong&gt;все вкладки&lt;/strong&gt; в группе &lt;strong&gt;%1&lt;/strong&gt;?</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="4223"/>
+        <location filename="../src/gui/mainwindow.cpp" line="4847"/>
         <source>Remove Tab?</source>
         <translation>Удалить вкладку ?</translation>
     </message>
     <message>
-        <location filename="../src/gui/mainwindow.cpp" line="4224"/>
+        <location filename="../src/gui/mainwindow.cpp" line="4848"/>
         <source>Do you want to remove tab &lt;strong&gt;%1&lt;/strong&gt;?</source>
         <translation>Вы хотите удалить вкладку &lt;strong&gt;%1&lt;/strong&gt;?</translation>
     </message>
@@ -2646,7 +2815,7 @@ Set to 0 to disable.</source>
 <context>
     <name>Proxy</name>
     <message>
-        <location filename="../plugins/itemfakevim/itemfakevim.cpp" line="519"/>
+        <location filename="../plugins/itemfakevim/itemfakevim.cpp" line="531"/>
         <source>Information</source>
         <translation>Информация</translation>
     </message>
@@ -2654,13 +2823,13 @@ Set to 0 to disable.</source>
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../src/common/common.cpp" line="600"/>
+        <location filename="../src/common/common.cpp" line="401"/>
         <source>&lt;HIDDEN&gt;</source>
         <comment>Label for hidden/secret clipboard content</comment>
         <translation>&lt;Скрыто&gt;</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/common/common.cpp" line="606"/>
+        <location filename="../src/common/common.cpp" line="407"/>
         <source>%1 (%n lines)</source>
         <comment>Label for multi-line text in clipboard</comment>
         <translation>
@@ -2670,25 +2839,25 @@ Set to 0 to disable.</source>
         </translation>
     </message>
     <message>
-        <location filename="../src/common/common.cpp" line="616"/>
+        <location filename="../src/common/common.cpp" line="417"/>
         <source>&lt;IMAGE&gt;</source>
         <comment>Label for image in clipboard</comment>
         <translation>&lt;ИЗОБРАЖЕНИЕ&gt;</translation>
     </message>
     <message>
-        <location filename="../src/common/common.cpp" line="618"/>
+        <location filename="../src/common/common.cpp" line="419"/>
         <source>&lt;ITEMS&gt;</source>
         <comment>Label for copied items in clipboard</comment>
         <translation>&lt;ОБЪЕКТЫ&gt;</translation>
     </message>
     <message>
-        <location filename="../src/common/common.cpp" line="620"/>
+        <location filename="../src/common/common.cpp" line="421"/>
         <source>&lt;EMPTY&gt;</source>
         <comment>Label for empty clipboard</comment>
         <translation>&lt;ПУСТО&gt;</translation>
     </message>
     <message>
-        <location filename="../src/common/common.cpp" line="622"/>
+        <location filename="../src/common/common.cpp" line="423"/>
         <source>&lt;DATA&gt;</source>
         <comment>Label for data in clipboard</comment>
         <translation>&lt;ДАННЫЕ&gt;</translation>
@@ -2720,7 +2889,7 @@ Set to 0 to disable.</source>
         <translation type="vanished">%1</translation>
     </message>
     <message>
-        <location filename="../src/main.cpp" line="227"/>
+        <location filename="../src/main.cpp" line="319"/>
         <source>Session name must contain at most 16 characters
 which can be letters, digits, &apos;-&apos; or &apos;_&apos;!</source>
         <translation>Название сеанса должно содержать не более 16 символов,
@@ -2738,9 +2907,8 @@ which can be letters, digits, &apos;-&apos; or &apos;_&apos;!</source>
         <translation>&amp;Новый объект</translation>
     </message>
     <message>
-        <location filename="../src/gui/menuitems.cpp" line="44"/>
         <source>Ctrl+I</source>
-        <translation>Ctrl+I</translation>
+        <translation type="vanished">Ctrl+I</translation>
     </message>
     <message>
         <location filename="../src/gui/menuitems.cpp" line="44"/>
@@ -3023,11 +3191,21 @@ which can be letters, digits, &apos;-&apos; or &apos;_&apos;!</source>
     </message>
     <message>
         <location filename="../src/gui/menuitems.cpp" line="153"/>
+        <source>Show &amp;Menu Bar</source>
+        <translation>Показать &amp;строку меню</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/menuitems.cpp" line="154"/>
+        <source>Ctrl+M</source>
+        <translation>Ctrl+M</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/menuitems.cpp" line="156"/>
         <source>Open Item Context Menu</source>
         <translation>Открыть контекстное меню объектов</translation>
     </message>
     <message>
-        <location filename="../src/gui/menuitems.cpp" line="154"/>
+        <location filename="../src/gui/menuitems.cpp" line="157"/>
         <source>Shift+F10</source>
         <comment>Default shortcut to open item context menu</comment>
         <translation>Shift+F10</translation>
@@ -3036,6 +3214,11 @@ which can be letters, digits, &apos;-&apos; or &apos;_&apos;!</source>
         <location filename="../src/gui/menuitems.cpp" line="142"/>
         <source>&amp;Previous Tab</source>
         <translation>Предыду&amp;щая вкладка</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/menuitems.cpp" line="44"/>
+        <source>Ctrl+Shift+I</source>
+        <translation>Ctrl+Shift+I</translation>
     </message>
     <message>
         <location filename="../src/gui/menuitems.cpp" line="78"/>
@@ -3146,12 +3329,12 @@ which can be letters, digits, &apos;-&apos; or &apos;_&apos;!</source>
         <translation>&amp;Справка</translation>
     </message>
     <message>
-        <location filename="../src/item/itemfactory.cpp" line="437"/>
+        <location filename="../src/item/itemfactory.cpp" line="463"/>
         <source>Tab %1 is corrupted or some CopyQ plugins are missing!</source>
         <translation>Вкладка %1 повреждена или отсутствуют некоторые плагины CopyQ!</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/scriptable/scriptableproxy.cpp" line="2474"/>
+        <location filename="../src/scriptable/scriptableproxy.cpp" line="2263"/>
         <source>Text Copied (%n lines)</source>
         <comment>Notification title for multi-line text in clipboard</comment>
         <translation>
@@ -3161,16 +3344,166 @@ which can be letters, digits, &apos;-&apos; or &apos;_&apos;!</source>
         </translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptableproxy.cpp" line="2477"/>
+        <location filename="../src/scriptable/scriptableproxy.cpp" line="2266"/>
         <source>Text Copied</source>
         <comment>Notification title for single-line text in clipboard</comment>
         <translation>Текст скопирован</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptableproxy.cpp" line="2493"/>
+        <location filename="../src/scriptable/scriptableproxy.cpp" line="2282"/>
         <source>Data Copied</source>
         <comment>Notification title for a copied data in clipboard</comment>
         <translation>Данные скопированы</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="155"/>
+        <location filename="../src/gui/encryptionpassword.cpp" line="265"/>
+        <source>New Tab Encryption Password</source>
+        <translation>Новый пароль шифрования вкладки</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="157"/>
+        <location filename="../src/gui/encryptionpassword.cpp" line="266"/>
+        <source>Enter new password:</source>
+        <translation>Введите новый пароль:</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="158"/>
+        <location filename="../src/gui/encryptionpassword.cpp" line="320"/>
+        <source>Passwords did not match. Please try again (%1/%2):</source>
+        <translation>Пароли не совпадают. Повторите попытку (%1/%2):</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="171"/>
+        <location filename="../src/gui/encryptionpassword.cpp" line="337"/>
+        <source>Change Password</source>
+        <translation>Смена пароля</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="172"/>
+        <location filename="../src/gui/encryptionpassword.cpp" line="338"/>
+        <source>New password cannot be empty.</source>
+        <translation>Новый пароль не может быть пустым.</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="177"/>
+        <location filename="../src/gui/encryptionpassword.cpp" line="206"/>
+        <location filename="../src/gui/encryptionpassword.cpp" line="369"/>
+        <source>Password Setup Failed</source>
+        <translation>Не удалось настроить пароль</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="178"/>
+        <location filename="../src/gui/encryptionpassword.cpp" line="207"/>
+        <location filename="../src/gui/encryptionpassword.cpp" line="246"/>
+        <location filename="../src/gui/encryptionpassword.cpp" line="370"/>
+        <source>Maximum password attempts exceeded.</source>
+        <translation>Превышен максимум попыток ввода пароля.</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="188"/>
+        <location filename="../src/gui/encryptionpassword.cpp" line="347"/>
+        <source>Confirm Encryption Password</source>
+        <translation>Подтверждение пароля шифрования</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="189"/>
+        <location filename="../src/gui/encryptionpassword.cpp" line="348"/>
+        <source>Re-enter password to confirm:</source>
+        <translation>Повторите пароль для подтверждения:</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="226"/>
+        <source>Current Tab Encryption Password</source>
+        <translation>Текущий пароль шифрования вкладки</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="228"/>
+        <source>Enter current password for encrypting tab data:</source>
+        <translation>Введите текущий пароль для шифрования данных вкладки:</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="229"/>
+        <source>Invalid password. Please try again (%1/%2):</source>
+        <translation>Неверный пароль. Повторите попытку (%1/%2):</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="245"/>
+        <source>Password Verification Failed</source>
+        <translation>Не удалось проверить пароль</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="399"/>
+        <source>Encryption Files Corrupted</source>
+        <translation>Файлы шифрования повреждены</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="400"/>
+        <source>Encryption files are missing or corrupted. Strict mode cannot recover encrypted tabs automatically.</source>
+        <translation>Файлы шифрования отсутствуют или повреждены. Строгий режим не может автоматически восстановить зашифрованные вкладки.</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="436"/>
+        <source>Change Password Failed</source>
+        <translation>Не удалось сменить пароль</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="437"/>
+        <source>Failed to change password. Your old password is still active. Please check the logs for details.</source>
+        <translation>Не удалось сменить пароль. Ваш старый пароль всё ещё действует. Подробности см. в журналах.</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="445"/>
+        <source>Change Password Successful</source>
+        <translation>Пароль успешно изменён</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="446"/>
+        <source>Password has been changed successfully.</source>
+        <translation>Пароль был успешно изменён.</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="461"/>
+        <source>Re-encrypting tabs...</source>
+        <translation>Перешифровка вкладок…</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="462"/>
+        <source>Cancel</source>
+        <translation>Отмена</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="491"/>
+        <source>Re-encrypting tab %1 of %2: %3</source>
+        <translation>Перешифровка вкладки %1 из %2: %3</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="539"/>
+        <source>Failed to encrypt the following tabs:
+
+%1
+
+Please check the logs for details.</source>
+        <translation>Не удалось зашифровать следующие вкладки:
+
+%1
+
+Подробности см. в журналах.</translation>
+    </message>
+    <message>
+        <location filename="../src/gui/encryptionpassword.cpp" line="543"/>
+        <source>Encryption Failed</source>
+        <translation>Сбой шифрования</translation>
+    </message>
+    <message>
+        <location filename="../src/platform/win/winplatform.cpp" line="368"/>
+        <source>Screen Capture Prevention Unavailable</source>
+        <translation>Предотвращение захвата экрана недоступно</translation>
+    </message>
+    <message>
+        <location filename="../src/platform/win/winplatform.cpp" line="369"/>
+        <source>The option to hide from screenshots is enabled but cannot take effect in a remote desktop session. Window content may be visible to screen capture.</source>
+        <translation>Функция скрытия на скриншотах включена, но не может действовать в сеансе удалённого рабочего стола. Содержимое окна может быть видно при захвате экрана.</translation>
     </message>
 </context>
 <context>
@@ -3391,9 +3724,8 @@ Arguments are accessible using with &quot;arguments[0..N]&quot;.</source>
 Аргументы могут быть доступны при использовании с &quot;аргументами[0..N]&quot;.</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/commandhelp.cpp" line="184"/>
         <source>Run application tests (append --help argument for more info).</source>
-        <translation>Выполнения тестов приложение (добавить аргумент --help для получения дополнительной информации).</translation>
+        <translation type="vanished">Выполнения тестов приложение (добавить аргумент --help для получения дополнительной информации).</translation>
     </message>
     <message>
         <location filename="../src/scriptable/commandhelp.cpp" line="55"/>
@@ -3445,8 +3777,8 @@ Use %1 in PROGRAM to pass text as argument.</source>
     <message>
         <location filename="../src/scriptable/commandhelp.cpp" line="145"/>
         <location filename="../src/scriptable/commandhelp.cpp" line="179"/>
-        <location filename="../src/scriptable/commandhelp.cpp" line="188"/>
-        <location filename="../src/scriptable/scriptable.cpp" line="111"/>
+        <location filename="../src/scriptable/commandhelp.cpp" line="184"/>
+        <location filename="../src/scriptable/scriptable.cpp" line="112"/>
         <source>COMMAND</source>
         <translation>КОМАНДА</translation>
     </message>
@@ -3538,7 +3870,7 @@ Use %1 in PROGRAM to pass text as argument.</source>
         <translation>Вывести версию программы и библиотек.</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/commandhelp.cpp" line="187"/>
+        <location filename="../src/scriptable/commandhelp.cpp" line="183"/>
         <source>Start server in background before running a command.</source>
         <translation>Запустите сервер в фоне перед тем, как выполнить команду.</translation>
     </message>
@@ -3566,92 +3898,100 @@ Print version of program and libraries.</source>
 Печатать версию программы и библиотек.</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptable.cpp" line="111"/>
+        <location filename="../src/scriptable/scriptable.cpp" line="112"/>
         <source>Usage: copyq [%1]</source>
         <translation>Использование: copyq [%1]</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptable.cpp" line="112"/>
+        <location filename="../src/scriptable/scriptable.cpp" line="113"/>
         <source>Starts server if no command is specified.</source>
         <translation>Запускает сервер, если команда не указана.</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptable.cpp" line="113"/>
+        <location filename="../src/scriptable/scriptable.cpp" line="114"/>
         <source>  COMMANDs:</source>
         <translation>  КОМАНДЫ:</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptable.cpp" line="118"/>
+        <location filename="../src/scriptable/scriptable.cpp" line="119"/>
         <source>NOTES:</source>
         <translation>ЗАМЕТКИ:</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptable.cpp" line="120"/>
+        <location filename="../src/scriptable/scriptable.cpp" line="121"/>
         <source>  - Use double-dash argument (--) to read all following arguments without
     expanding escape sequences (i.e. \n, \t and others).</source>
         <translation>  - Используйте аргумент двойного тире (--) для чтения всех следующих аргументов
 без расширения экранированной последовательности (например, \n, \t и другие).</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptable.cpp" line="122"/>
+        <location filename="../src/scriptable/scriptable.cpp" line="123"/>
         <source>  - Use ? for MIME to print available MIME types (default is &quot;text/plain&quot;).</source>
         <translation>  - Используйте для MIME символ ? для вывода доступных MIME-типов (по умолчанию — «text/plain»).</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptable.cpp" line="127"/>
+        <location filename="../src/scriptable/scriptable.cpp" line="128"/>
         <source>Invalid number of arguments!</source>
         <translation>Неверное число аргументов!</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptable.cpp" line="725"/>
-        <location filename="../src/scriptable/scriptable.cpp" line="760"/>
+        <location filename="../src/scriptable/scriptable.cpp" line="522"/>
+        <source>Failed to export file &quot;%1&quot;</source>
+        <translation>Не удалось экспортировать файл «%1»</translation>
+    </message>
+    <message>
+        <location filename="../src/scriptable/scriptable.cpp" line="527"/>
+        <source>Failed to import file &quot;%1&quot;</source>
+        <translation>Не удалось импортировать файл «%1»</translation>
+    </message>
+    <message>
+        <location filename="../src/scriptable/scriptable.cpp" line="667"/>
+        <location filename="../src/scriptable/scriptable.cpp" line="683"/>
         <source>CopyQ Clipboard Manager</source>
         <translation>Диспетчер буфера обмена CopyQ</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptable.cpp" line="772"/>
+        <location filename="../src/scriptable/scriptable.cpp" line="695"/>
         <source>Command not found!</source>
         <translation>Команда не найдена!</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptable.cpp" line="871"/>
+        <location filename="../src/scriptable/scriptable.cpp" line="794"/>
         <source>Terminating server.
 </source>
         <translation>Прекращается работа сервера.
 </translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptable.cpp" line="2877"/>
+        <location filename="../src/scriptable/scriptable.cpp" line="2771"/>
         <source>Exception</source>
         <translation>Исключение</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptable.cpp" line="2878"/>
+        <location filename="../src/scriptable/scriptable.cpp" line="2772"/>
         <source>Exception in %1</source>
         <translation>Исключение в %1</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptable.cpp" line="2982"/>
+        <location filename="../src/scriptable/scriptable.cpp" line="2887"/>
         <source>Failed to copy to clipboard!</source>
         <translation>Не удаётся скопировать в буфер обмена!</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptable.cpp" line="583"/>
         <source>Cannot save to file &quot;%1&quot;!</source>
-        <translation>Не удаётся сохранить в файл «%1»!</translation>
+        <translation type="vanished">Не удаётся сохранить в файл «%1»!</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptable.cpp" line="119"/>
+        <location filename="../src/scriptable/scriptable.cpp" line="120"/>
         <source>  - Use dash argument (-) to read data from standard input.</source>
         <translation>  - Используйте аргумент тире (-) для чтения данных из стандартного ввода.</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptable.cpp" line="588"/>
         <source>Cannot import file &quot;%1&quot;!</source>
-        <translation>Не удаётся импортировать файл «%1»!</translation>
+        <translation type="vanished">Не удаётся импортировать файл «%1»!</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptable.cpp" line="1391"/>
+        <location filename="../src/scriptable/scriptable.cpp" line="1398"/>
         <source>Invalid option &quot;%1&quot;!</source>
         <translation>Недопустимый параметр «%1»!</translation>
     </message>
@@ -3659,22 +3999,22 @@ Print version of program and libraries.</source>
 <context>
     <name>ScriptableProxy</name>
     <message>
-        <location filename="../src/scriptable/scriptableproxy.cpp" line="619"/>
+        <location filename="../src/scriptable/scriptableproxy.cpp" line="625"/>
         <source>Tab with given name doesn&apos;t exist!</source>
         <translation>Вкладки с таким именем не существует!</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptableproxy.cpp" line="624"/>
+        <location filename="../src/scriptable/scriptableproxy.cpp" line="630"/>
         <source>Tab name cannot be empty!</source>
         <translation>Имя вкладки не может быть пустым!</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptableproxy.cpp" line="1152"/>
+        <location filename="../src/scriptable/scriptableproxy.cpp" line="981"/>
         <source>Tab with given name already exists!</source>
         <translation>Вкладка с таким именем уже существует!</translation>
     </message>
     <message>
-        <location filename="../src/scriptable/scriptableproxy.cpp" line="2412"/>
+        <location filename="../src/scriptable/scriptableproxy.cpp" line="2201"/>
         <source>*Clipboard Storing Disabled*</source>
         <comment>Main window title if clipboard storing is disabled</comment>
         <translation>*Хранение буфера обмена отключено*</translation>
@@ -3806,6 +4146,25 @@ Use &lt;b&gt;/&lt;/b&gt; as path separator in tree view tab layout.</source>
         <translation>&amp;Сохранять объекты</translation>
     </message>
     <message>
+        <location filename="../src/ui/tabpropertieswidget.ui" line="93"/>
+        <source>Require password after an interval:</source>
+        <translation>Запрашивать пароль через:</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/tabpropertieswidget.ui" line="103"/>
+        <source>Per-tab timeout in seconds for requiring encryption password again.
+
+Set to 0 to use global setting.</source>
+        <translation>Тайм-аут для вкладки в секундах для повторного запроса пароля шифрования.
+
+Установите 0 для использования глобальной настройки.</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/tabpropertieswidget.ui" line="108"/>
+        <source>global</source>
+        <translation>глобально</translation>
+    </message>
+    <message>
         <source>&amp;Store Items</source>
         <translation type="vanished">&amp;Сохранить элементы</translation>
     </message>
@@ -3813,17 +4172,17 @@ Use &lt;b&gt;/&lt;/b&gt; as path separator in tree view tab layout.</source>
 <context>
     <name>TrayMenu</name>
     <message>
-        <location filename="../src/gui/traymenu.cpp" line="96"/>
+        <location filename="../src/gui/traymenu.cpp" line="144"/>
         <source>Press &apos;/&apos; to search</source>
         <translation>Нажмите «/» для поиска</translation>
     </message>
     <message>
-        <location filename="../src/gui/traymenu.cpp" line="96"/>
+        <location filename="../src/gui/traymenu.cpp" line="146"/>
         <source>Type to search</source>
         <translation>Введите для поиска</translation>
     </message>
     <message>
-        <location filename="../src/gui/traymenu.cpp" line="110"/>
+        <location filename="../src/gui/traymenu.cpp" line="162"/>
         <source>&amp;%1. %2</source>
         <comment>Key hint (number shortcut) for items in tray menu (%1 is number, %2 is item label)</comment>
         <translation>&amp;%1. %2</translation>
@@ -3832,12 +4191,12 @@ Use &lt;b&gt;/&lt;/b&gt; as path separator in tree view tab layout.</source>
 <context>
     <name>Utils::FilterLineEdit</name>
     <message>
-        <location filename="../src/gui/filterlineedit.cpp" line="375"/>
+        <location filename="../src/gui/filterlineedit.cpp" line="380"/>
         <source>Regular Expression</source>
         <translation>Регулярное выражение</translation>
     </message>
     <message>
-        <location filename="../src/gui/filterlineedit.cpp" line="378"/>
+        <location filename="../src/gui/filterlineedit.cpp" line="383"/>
         <source>Case Insensitive</source>
         <translation>Без учёта регистра</translation>
     </message>

@@ -13,6 +13,7 @@
 #include "gui/commandwidget.h"
 #include "gui/iconfactory.h"
 #include "gui/icons.h"
+#include "gui/fromiconid.h"
 #include "platform/platformclipboard.h"
 #include "platform/platformnativeinterface.h"
 
@@ -48,7 +49,7 @@ QIcon getCommandIcon(const QString &iconString, int commandType)
           : commandType & CommandType::Menu ? QColor(100,220,255)
           : QColor(255,100,100);
 
-    return iconFromFile(iconString, QString(QChar(icon)), color);
+    return iconFromFile(iconString, fromIconId(icon), color);
 }
 
 bool hasCommandsToPaste(const QString &text)
@@ -271,7 +272,13 @@ void CommandDialog::onPushButtonSaveCommandsClicked()
             fileName.append(".ini");
 
         QFile ini(fileName);
-        ini.open(QIODevice::WriteOnly);
+        if ( !ini.open(QIODevice::WriteOnly) ) {
+            QMessageBox::warning(
+                    this, tr("Save Commands"),
+                    tr("Failed to save commands to file \"%1\": %2")
+                    .arg(fileName, ini.errorString()) );
+            return;
+        }
         ini.write(serializeSelectedCommands().toUtf8());
     }
 }
@@ -342,7 +349,7 @@ Command CommandDialog::currentCommand(int row) const
 
     QWidget *w = ui->itemOrderListCommands->widget(row);
     if (w) {
-        const CommandWidget *commandWidget = qobject_cast<const CommandWidget *>(w);
+        const auto *commandWidget = qobject_cast<const CommandWidget *>(w);
         Q_ASSERT(commandWidget);
         c = commandWidget->command();
     } else {
@@ -401,7 +408,7 @@ Commands CommandDialog::selectedCommands() const
     return commandsToSave;
 }
 
-QString CommandDialog::serializeSelectedCommands()
+QString CommandDialog::serializeSelectedCommands() const
 {
     const Commands commands = selectedCommands();
     if ( commands.isEmpty() )
@@ -422,7 +429,7 @@ void CommandDialog::updateIcon(int row)
     ui->itemOrderListCommands->setItemIcon(row, icon);
 }
 
-QString CommandDialog::commandsToPaste()
+QString CommandDialog::commandsToPaste() const
 {
     auto clipboard = platformNativeInterface()->clipboard();
     const QMimeData *data = clipboard->mimeData(ClipboardMode::Clipboard);

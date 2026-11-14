@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef CLIPBOARDCLIENT_H
-#define CLIPBOARDCLIENT_H
+#pragma once
+
 
 #include "app.h"
 
@@ -28,13 +28,12 @@ signals:
     void functionCallResultReceived(const QByteArray &returnValue);
     void inputDialogFinished(const QByteArray &data);
     void dataReceived(const QByteArray &data);
+    void stop();
 
 private:
     void onMessageReceived(const QByteArray &data, int messageCode);
     void onDisconnected();
     void onConnectionFailed();
 
-    void start(const QStringList &arguments);
+    void start(const QString &sessionName, const QStringList &arguments);
 };
-
-#endif // CLIPBOARDCLIENT_H

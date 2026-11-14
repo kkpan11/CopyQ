@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef ITEMWIDGET_H
-#define ITEMWIDGET_H
+#pragma once
 
-#include "tests/testinterface.h"
 
 #include <QObject>
 #include <QtContainerFwd>
@@ -13,7 +11,6 @@
 struct Command;
 
 class ItemFilter;
-class TestInterface;
 class QAbstractItemModel;
 class QIODevice;
 class QModelIndex;
@@ -31,9 +28,7 @@ using ItemSaverPtr = std::shared_ptr<ItemSaverInterface>;
 class ItemScriptableFactoryInterface;
 using ItemScriptableFactoryPtr = std::shared_ptr<ItemScriptableFactoryInterface>;
 
-using TestInterfacePtr = std::shared_ptr<TestInterface>;
-
-#define COPYQ_PLUGIN_ITEM_LOADER_ID "com.github.hluk.copyq.itemloader/8.0.0"
+#define COPYQ_PLUGIN_ITEM_LOADER_ID "com.github.hluk.copyq.itemloader/17.0.0"
 
 /**
  * Handles item in list.
@@ -65,7 +60,7 @@ public:
      *
      * Used to hide unimportant data when notes or tags are present.
      */
-    virtual void setTagged(bool) {}
+    virtual void setTagged(bool) { /* No-op default: subclasses override to handle tag visibility */ }
 
     ItemWidget(const ItemWidget &) = delete;
     ItemWidget &operator=(const ItemWidget &) = delete;
@@ -110,7 +105,7 @@ public:
     void setScriptable(QObject *scriptable) { m_scriptable = scriptable; }
 
     /** Called before script starts (and scriptable is valid). */
-    virtual void start() {}
+    virtual void start() { /* No-op default: subclasses override for post-bind initialization */ }
 
 protected:
     /**
@@ -118,7 +113,7 @@ protected:
      *
      * Shouldn't be called before start().
      */
-    QVariant call(const QString &method, const QVariantList &arguments = QVariantList());
+    QVariant call(const QString &method, const QVariantList &arguments);
 
     /**
      * Evaluate script.
@@ -293,7 +288,7 @@ public:
     /**
      * Save and return configuration values to save from current settings widget.
      */
-    virtual void applySettings(QSettings &) {}
+    virtual void applySettings(QSettings &) { /* No-op default: subclasses override to persist plugin settings */ }
 
     virtual void setEnabled(bool enabled) { m_enabled = enabled; }
     bool isEnabled() const { return m_enabled; }
@@ -301,7 +296,7 @@ public:
     /**
      * Load stored configuration values.
      */
-    virtual void loadSettings(const QSettings &) {}
+    virtual void loadSettings(const QSettings &) { /* No-op default: subclasses override to load plugin settings */ }
 
     /**
      * Create settings widget.
@@ -350,16 +345,6 @@ public:
     virtual bool matches(const QModelIndex &index, const ItemFilter &filter) const;
 
     /**
-     * Return object with tests.
-     *
-     * All private slots are executed (see QtTest documentation).
-     *
-     * Property "CopyQ_test_settings" contains configuration for GUI server and
-     * if will be passed to ItemLoaderInterface::loadSettings() for this plugin.
-     */
-    virtual QObject *tests(const TestInterfacePtr &test) const;
-
-    /**
      * Return QObject instance with signals (by default null pointer).
      *
      * Returned QObject can have signal error(QString) for signaling errors.
@@ -370,6 +355,11 @@ public:
      * Return scriptable object.
      */
     virtual ItemScriptable *scriptableObject();
+
+    /**
+     * Callback from scripts/clients, run in the server process.
+     */
+    virtual QVariant scriptCallback(const QVariantList &arguments);
 
     /**
      * Adds commands from scripts for command dialog.
@@ -392,6 +382,8 @@ public:
      */
     virtual QObject *createExternalEditor(const QModelIndex &index, const QVariantMap &data, QWidget *parent) const;
 
+    virtual bool supportsEncryption() const { return false; }
+
     ItemLoaderInterface(const ItemLoaderInterface &) = delete;
     ItemLoaderInterface &operator=(const ItemLoaderInterface &) = delete;
 
@@ -400,5 +392,3 @@ private:
 };
 
 Q_DECLARE_INTERFACE(ItemLoaderInterface, COPYQ_PLUGIN_ITEM_LOADER_ID)
-
-#endif // ITEMWIDGET_H

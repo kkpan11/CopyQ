@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef ITEMSYNC_H
-#define ITEMSYNC_H
+#pragma once
+
 
 #include "gui/icons.h"
 #include "item/itemwidgetwrapper.h"
@@ -140,8 +140,6 @@ public:
 
     bool matches(const QModelIndex &index, const ItemFilter &filter) const override;
 
-    QObject *tests(const TestInterfacePtr &test) const override;
-
     const QObject *signaler() const override { return this; }
 
     ItemScriptable *scriptableObject() override;
@@ -161,5 +159,3 @@ private:
     QList<FileFormat> m_formatSettings;
     int m_itemDataThreshold = -1;
 };
-
-#endif // ITEMSYNC_H

@@ -8,13 +8,13 @@
 #include "common/client_server.h"
 #include "common/commandstatus.h"
 #include "common/config.h"
-#include "common/display.h"
 #include "common/log.h"
 #include "common/mimetypes.h"
 #include "common/shortcuts.h"
 #include "common/sleeptimer.h"
 #include "common/timer.h"
 #include "common/textdata.h"
+#include "common/version.h"
 #include "gui/actionhandler.h"
 #include "gui/clipboardbrowser.h"
 #include "gui/commanddialog.h"
@@ -26,6 +26,7 @@
 #include "item/itemstore.h"
 #include "item/serialize.h"
 #include "scriptable/scriptableproxy.h"
+#include "scriptable/scriptoverrides.h"
 
 #include <QAction>
 #include <QApplication>
@@ -35,9 +36,13 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QPixmapCache>
+#include <QPushButton>
 #include <QSessionManager>
 #include <QStyleFactory>
+#include <QTimer>
 #include <QTextEdit>
+#include <QWindow>
 
 #ifdef COPYQ_GLOBAL_SHORTCUTS
 #include "../qxt/qxtglobalshortcut.h"
@@ -52,7 +57,11 @@ namespace {
 uint monitorCommandStateHash(const QVector<Command> &commands)
 {
     uint seed = 0;
+#if QT_VERSION >= QT_VERSION_CHECK(6,10,0)
+    QtPrivate::QHashCombine hash(seed);
+#else
     QtPrivate::QHashCombine hash;
+#endif
 
     for (const auto &command : commands) {
         if (command.type() == CommandType::Script)
@@ -68,18 +77,37 @@ void setTabWidth(QTextEdit *editor, int spaces)
 {
     const QLatin1Char space(' ');
     const QFontMetricsF metrics(editor->fontMetrics());
-
-#if QT_VERSION >= QT_VERSION_CHECK(5,11,0)
     const qreal width = metrics.horizontalAdvance(QString(spaces, space));
-#else
-    const qreal width = metrics.width(space) * spaces;
-#endif
-
-#if QT_VERSION >= QT_VERSION_CHECK(5,10,0)
     editor->setTabStopDistance(width);
-#else
-    editor->setTabStopWidth(width);
-#endif
+}
+
+void cleanUpLogFilesTimer()
+{
+    bool ok;
+    int maxLogSize = qEnvironmentVariableIntValue("COPYQ_MAX_LOG_SIZE", &ok);
+    if (!ok)
+        maxLogSize = 10 * 1024 * 1024;
+
+    int maxFiles = qEnvironmentVariableIntValue("COPYQ_MAX_LOG_FILES", &ok);
+    if (!ok)
+        maxFiles = 100;
+
+    constexpr int startIntervalMs = 30 * 1000;
+    constexpr int cleanUpIntervalMs = 1 * 60 * 60 * 1000;
+
+    auto timer = new QTimer(qApp);
+    timer->setSingleShot(false);
+    timer->setInterval(cleanUpIntervalMs);
+    timer->start();
+
+    auto callback = [maxFiles, maxLogSize](){ dropLogsToFileCountAndSize(maxFiles, maxLogSize); };
+    QTimer::singleShot(startIntervalMs, qApp, callback);
+    QObject::connect(timer, &QTimer::timeout, qApp, callback);
+}
+
+void setPreventScreenCapture(QWindow *window, bool prevent)
+{
+    platformNativeInterface()->setPreventScreenCapture(window->winId(), prevent);
 }
 
 } // namespace
@@ -90,45 +118,50 @@ ClipboardServer::ClipboardServer(QApplication *app, const QString &sessionName)
     , m_wnd(nullptr)
     , m_shortcutActions()
     , m_ignoreKeysTimer()
+    , m_sharedData(std::make_shared<ClipboardBrowserShared>())
 {
-    setLogLabel("Server");
+    // Server-spawned subprocesses connect back to an already-running server.
+    // Skip the connection retry delay so they fail fast during shutdown.
+    qputenv("COPYQ_WAIT_FOR_SERVER_MS", "0");
 
-    m_server = new Server(clipboardServerName(), this);
+    m_server = new Server(clipboardServerName(sessionName), this);
 
     if ( m_server->isListening() ) {
+        log( QStringLiteral("Starting server: CopyQ %1").arg(versionString) );
         App::installTranslator();
         qApp->setLayoutDirection(QLocale().textDirection());
     } else {
         App::installTranslator();
-        if ( canUseStandardOutput() ) {
-            log( tr("CopyQ server is already running."), LogWarning );
-        }
+        log( tr("CopyQ server is already running."), LogWarning );
         exit(0);
         return;
     }
 
+    if ( qgetenv("COPYQ_QT_FILE_DIALOGS") == "1" ) {
+        QCoreApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+    }
+
+    cleanUpLogFilesTimer();
+
     if ( sessionName.isEmpty() ) {
         QGuiApplication::setApplicationDisplayName(QStringLiteral("CopyQ"));
     } else {
+        log( QStringLiteral("Session: %1").arg(sessionName) );
         QGuiApplication::setApplicationDisplayName(
             QStringLiteral("CopyQ-%1").arg(sessionName));
     }
 
-    QGuiApplication::setDesktopFileName(QStringLiteral("com.github.hluk.copyq"));
-
-#if QT_VERSION < QT_VERSION_CHECK(6,0,0)
-    QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps, true);
-#endif
-
     QApplication::setQuitOnLastWindowClosed(false);
 
     ensureSettingsDirectoryExists();
+    ensureStateDirectoryExists();
+    migrateDataFiles();
 
-    m_sharedData = std::make_shared<ClipboardBrowserShared>();
-    m_sharedData->itemFactory = new ItemFactory(this);
+    m_sharedData->itemFactory = new ItemFactory(m_sharedData, this);
     m_sharedData->notifications = new NotificationDaemon(this);
     m_sharedData->actions = new ActionHandler(m_sharedData->notifications, this);
     m_wnd = new MainWindow(m_sharedData);
+    qApp->setProperty("CopyQ_server", QVariant::fromValue(static_cast<QObject*>(this)));
 
     connect( m_sharedData->notifications, &NotificationDaemon::notificationButtonClicked,
              this, &ClipboardServer::onNotificationButtonClicked );
@@ -145,9 +178,6 @@ ClipboardServer::ClipboardServer(QApplication *app, const QString &sessionName)
 
     connect( qApp, &QGuiApplication::commitDataRequest, this, &ClipboardServer::onCommitData );
     connect( qApp, &QGuiApplication::saveStateRequest, this, &ClipboardServer::onSaveState );
-#if QT_VERSION < QT_VERSION_CHECK(6,0,0)
-    qApp->setFallbackSessionManagementEnabled(false);
-#endif
 
     connect( m_wnd, &MainWindow::requestExit,
              this, &ClipboardServer::maybeQuit );
@@ -155,6 +185,8 @@ ClipboardServer::ClipboardServer(QApplication *app, const QString &sessionName)
              this, &ClipboardServer::onDisableClipboardStoringRequest );
     connect( m_wnd, &MainWindow::sendActionData,
              this, &ClipboardServer::sendActionData );
+    connect( m_wnd, &MainWindow::stopAction,
+             this, &ClipboardServer::stopAction );
 
     // notify window if configuration changes
     connect( m_wnd, &MainWindow::configurationChanged,
@@ -179,7 +211,7 @@ ClipboardServer::ClipboardServer(QApplication *app, const QString &sessionName)
     m_ignoreKeysTimer.setInterval(100);
     m_ignoreKeysTimer.setSingleShot(true);
 
-    initSingleShotTimer(&m_timerClearUnsentActionData, 2000, this, [&]() {
+    initSingleShotTimer(&m_timerClearUnsentActionData, 2000, this, [this]() {
         m_actionDataToSend.clear();
     });
 
@@ -198,6 +230,8 @@ ClipboardServer::ClipboardServer(QApplication *app, const QString &sessionName)
 
 ClipboardServer::~ClipboardServer()
 {
+    qApp->setProperty("CopyQ_server", QVariant());
+
     removeGlobalShortcuts();
 
     delete m_wnd;
@@ -211,6 +245,20 @@ ClipboardServer::~ClipboardServer()
 
     delete m_sharedData->itemFactory;
     m_sharedData->itemFactory = nullptr;
+}
+
+QStringList ClipboardServer::copyqStats() const
+{
+    const int total = m_clients.size();
+    const bool hasClipboardProvider = m_provideClipboardClientId != 0
+        && m_clients.contains(m_provideClipboardClientId);
+    const bool hasSelectionProvider = m_provideSelectionClientId != 0
+        && m_clients.contains(m_provideSelectionClientId);
+
+    return {QStringLiteral("CLIENTS: connected=%1, clipboard_provider=%2, selection_provider=%3")
+        .arg(total)
+        .arg(hasClipboardProvider ? "yes" : "no")
+        .arg(hasSelectionProvider ? "yes" : "no")};
 }
 
 void ClipboardServer::stopMonitoring()
@@ -228,8 +276,20 @@ void ClipboardServer::stopMonitoring()
 
 void ClipboardServer::startMonitoring()
 {
-    if (m_monitor || m_ignoreNewConnections || !m_wnd->isMonitoringEnabled())
+    if (m_monitor || m_exitting || m_ignoreNewConnections || !m_wnd->isMonitoringEnabled())
         return;
+
+    // A graceful exit was already requested (logout, SIGTERM/SIGINT): never start
+    // a new monitor process. The monitor child is killed together with the server,
+    // and a monitor started at that point aborts in Qt platform initialization
+    // ("This application failed to start because no Qt platform plugin could be
+    // initialized") because the X11/Wayland display connection is already gone.
+    // The request is latched in handleSignal() - before QCoreApplication::exit(),
+    // while m_exitting is only set later, in onAboutToQuit().
+    if (qApp->property("CopyQ_quitting").toBool()) {
+        COPYQ_LOG("Not starting monitor - quit requested");
+        return;
+    }
 
     COPYQ_LOG("Starting monitor");
 
@@ -286,7 +346,8 @@ void ClipboardServer::onAboutToQuit()
         return;
     m_exitting = true;
 
-    callback(QStringLiteral("onExit"));
+    if (m_wnd->isScriptOverridden(ScriptOverrides::OnExit))
+        callback(QStringLiteral("onExit"));
     waitForCallbackToFinish();
 
     m_ignoreNewConnections = true;
@@ -312,11 +373,13 @@ void ClipboardServer::onCommitData(QSessionManager &sessionManager)
     } else {
         m_wnd->saveTabs();
 
+#ifdef Q_OS_WIN
         // WORKAROUND: This is required to exit application from
         //             installer, otherwise main window is only
         //             minimized after this when tray is disabled.
         m_wnd->hide();
         exit();
+#endif
     }
 }
 
@@ -370,19 +433,20 @@ bool ClipboardServer::askToQuit()
                                 m_wnd );
 
         messageBox.addButton(tr("Cancel Exiting"), QMessageBox::RejectRole);
-        messageBox.addButton(tr("Exit Anyway"), QMessageBox::AcceptRole);
+        QAbstractButton *exitButton = messageBox.addButton(tr("Exit Anyway"), QMessageBox::AcceptRole);
 
         // Close the message box automatically after all running commands finish.
         QTimer timerCheckRunningCommands;
         timerCheckRunningCommands.setInterval(1000);
         connect( &timerCheckRunningCommands, &QTimer::timeout,
-                 this, [&]() {
+                 exitButton, [this, exitButton]() {
                     if ( !hasRunningCommands() )
-                        messageBox.accept();
+                        exitButton->click();
                  });
         timerCheckRunningCommands.start();
 
-        return messageBox.exec() == QMessageBox::Accepted;
+        messageBox.exec();
+        return exitButton == messageBox.clickedButton();
     }
 
     return true;
@@ -407,7 +471,8 @@ bool ClipboardServer::hasRunningCommands() const
 
 void ClipboardServer::terminateClients(int waitMs)
 {
-    for (auto it = m_clients.constBegin(); it != m_clients.constEnd(); ++it) {
+    const auto clients = m_clients;
+    for (auto it = clients.constBegin(); it != clients.constEnd(); ++it) {
         const auto &clientData = it.value();
         if (clientData.isValid())
             clientData.client->sendMessage(QByteArray(), CommandStop);
@@ -467,15 +532,40 @@ void ClipboardServer::sendActionData(int actionId, const QByteArray &bytes)
     }
 }
 
+void ClipboardServer::stopAction(int actionId)
+{
+    const auto client = findClient(actionId);
+    if (client) {
+        client->sendMessage(QByteArray(), CommandStop);
+    } else {
+        m_pendingStopActionIds.insert(actionId);
+        QTimer::singleShot(10000, this, [this, actionId]() {
+            m_pendingStopActionIds.remove(actionId);
+        });
+    }
+}
+
 void ClipboardServer::cleanDataFiles()
 {
     COPYQ_LOG("Cleaning unused item files");
-    ::cleanDataFiles( m_wnd->tabs() );
+    ::cleanDataFiles( m_wnd->tabs(), &m_sharedData->encryptionKey );
+}
+
+void ClipboardServer::setPreventScreenCapture(bool prevent)
+{
+    if (m_preventScreenCapture == prevent)
+        return;
+
+    m_preventScreenCapture = prevent;
+    for (QWindow *window : qApp->allWindows()) {
+        ::setPreventScreenCapture(window, m_preventScreenCapture);
+    }
 }
 
 void ClipboardServer::onClientNewConnection(const ClientSocketPtr &client)
 {
     auto proxy = new ScriptableProxy(m_wnd);
+    proxy->setClientSocketId(client->id());
     connect( client.get(), &ClientSocket::destroyed,
              proxy, &ScriptableProxy::safeDeleteLater );
     connect( proxy, &ScriptableProxy::sendMessage,
@@ -489,10 +579,20 @@ void ClipboardServer::onClientNewConnection(const ClientSocketPtr &client)
     connect( client.get(), &ClientSocket::disconnected,
              this, &ClipboardServer::onClientDisconnected );
     connect( client.get(), &ClientSocket::disconnected,
-             proxy, &ScriptableProxy::clientDisconnected );
+             proxy, &ScriptableProxy::disconnectClient );
     connect( client.get(), &ClientSocket::connectionFailed,
              this, &ClipboardServer::onClientConnectionFailed );
     client->start();
+    std::weak_ptr<ClientSocket> weakClient = client;
+    connect( proxy, &ScriptableProxy::actionIdChanged, this, [this, weakClient](int actionId) {
+        if (m_pendingStopActionIds.remove(actionId)) {
+            if (auto c = weakClient.lock())
+                c->sendMessage(QByteArray(), CommandStop);
+        }
+    });
+
+    connect( proxy, &ScriptableProxy::clipboardProviderRegistered,
+             this, &ClipboardServer::onClipboardProviderRegistered );
 
     if (m_ignoreNewConnections) {
         COPYQ_LOG("Ignoring new client while exiting");
@@ -504,10 +604,17 @@ void ClipboardServer::onClientMessageReceived(
         const QByteArray &message, int messageCode, ClientSocketId clientId)
 {
     switch (messageCode) {
+    case CommandFunctionCallPriority:
     case CommandFunctionCall: {
         const auto &clientData = m_clients.value(clientId);
         if (!clientData.isValid())
             return;
+
+        // Postpone processing clients after configuration is loaded
+        if (m_loadingSettings && messageCode == CommandFunctionCall) {
+            m_pendingMessages.append({message, messageCode, clientId});
+            return;
+        }
 
         clientData.proxy->callFunction(message);
         break;
@@ -530,7 +637,26 @@ void ClipboardServer::onClientMessageReceived(
 
 void ClipboardServer::onClientDisconnected(ClientSocketId clientId)
 {
+    if (m_provideClipboardClientId == clientId)
+        m_provideClipboardClientId = 0;
+    if (m_provideSelectionClientId == clientId)
+        m_provideSelectionClientId = 0;
     m_clients.remove(clientId);
+}
+
+void ClipboardServer::onClipboardProviderRegistered(ClientSocketId clientId, ClipboardMode mode)
+{
+    ClientSocketId &tracked = mode == ClipboardMode::Clipboard
+        ? m_provideClipboardClientId
+        : m_provideSelectionClientId;
+
+    if (tracked != 0 && tracked != clientId) {
+        auto it = m_clients.find(tracked);
+        if (it != m_clients.end() && it->isValid())
+            it->client->sendMessage(QByteArray(), CommandStop);
+    }
+
+    tracked = clientId;
 }
 
 void ClipboardServer::onClientConnectionFailed(ClientSocketId clientId)
@@ -571,7 +697,7 @@ void ClipboardServer::createGlobalShortcut(const QKeySequence &shortcut, const C
     Q_UNUSED(shortcut)
     Q_UNUSED(command)
 #else
-    auto s = new QxtGlobalShortcut(shortcut, this);
+    auto s = new QxtGlobalShortcut(shortcut, command.localizedName(), this);
     if (!s->isValid()) {
         log(QStringLiteral("Failed to set global shortcut \"%1\" for command \"%2\".")
             .arg(shortcut.toString(),
@@ -605,8 +731,8 @@ bool ClipboardServer::eventFilter(QObject *object, QEvent *ev)
 
         // Close menu on Escape key and give focus back to search edit or browser.
         if (type == QEvent::KeyPress) {
-            QKeyEvent *keyevent = static_cast<QKeyEvent *>(ev);
-            QMenu *menu = qobject_cast<QMenu*>(object);
+            auto *keyevent = static_cast<QKeyEvent *>(ev);
+            auto *menu = qobject_cast<QMenu*>(object);
             if (menu && keyevent->key() == Qt::Key_Escape) {
                 menu->close();
                 if (m_wnd->browseMode())
@@ -621,7 +747,7 @@ bool ClipboardServer::eventFilter(QObject *object, QEvent *ev)
                         .value<Qt::TextInteractionFlags>()
                         .testFlag(Qt::TextSelectableByKeyboard)) )
         {
-            QKeyEvent *keyevent = static_cast<QKeyEvent *>(ev);
+            auto *keyevent = static_cast<QKeyEvent *>(ev);
             if ( keyevent->key() == Qt::Key_Left
                  || keyevent->key() == Qt::Key_Right
                  || keyevent->key() == Qt::Key_Up
@@ -634,7 +760,7 @@ bool ClipboardServer::eventFilter(QObject *object, QEvent *ev)
     } else if (type == QEvent::Paint) {
         setActivePaintDevice(object);
     } else if (type == QEvent::FontChange) {
-        QTextEdit *editor = qobject_cast<QTextEdit*>(object);
+        auto *editor = qobject_cast<QTextEdit*>(object);
         if (editor)
             setTabWidth(editor, m_textTabSize);
     } else if ( type == QEvent::ApplicationStateChange && m_saveOnDeactivate ) {
@@ -648,7 +774,12 @@ bool ClipboardServer::eventFilter(QObject *object, QEvent *ev)
     } else if (type == QEvent::ThemeChange) {
         if ( !m_updateThemeTimer.isActive() )
             COPYQ_LOG("Got theme change event");
+        QPixmapCache::clear();
         m_updateThemeTimer.start();
+    } else if (m_preventScreenCapture && type == QEvent::Show) {
+        auto widget = qobject_cast<QWidget*>(object);
+        if (widget && widget->windowHandle())
+            ::setPreventScreenCapture(widget->windowHandle(), m_preventScreenCapture);
     }
 
     return false;
@@ -656,9 +787,13 @@ bool ClipboardServer::eventFilter(QObject *object, QEvent *ev)
 
 void ClipboardServer::loadSettings(AppConfig *appConfig)
 {
-    if (!m_sharedData->itemFactory)
+    if (!m_sharedData->itemFactory || m_loadingSettings)
         return;
 
+    m_loadingSettings = true;
+
+    const int gen = qApp->property("CopyQ_config_generation").toInt();
+    qApp->setProperty("CopyQ_config_generation", gen + 1);
     COPYQ_LOG("Loading configuration");
 
     QSettings &settings = appConfig->settings();
@@ -684,12 +819,14 @@ void ClipboardServer::loadSettings(AppConfig *appConfig)
     m_sharedData->editor = appConfig->option<Config::editor>();
     m_sharedData->maxItems = appConfig->option<Config::maxitems>();
     m_sharedData->textWrap = appConfig->option<Config::text_wrap>();
-    m_sharedData->viMode = appConfig->option<Config::vi>();
+    m_sharedData->navigationStyle = appConfig->option<Config::navigation_style>();
     m_sharedData->saveOnReturnKey = !appConfig->option<Config::edit_ctrl_return>();
     m_sharedData->moveItemOnReturnKey = appConfig->option<Config::move>();
     m_sharedData->showSimpleItems = appConfig->option<Config::show_simple_items>();
     m_sharedData->numberSearch = appConfig->option<Config::number_search>();
     m_sharedData->minutesToExpire = appConfig->option<Config::expire_tab>();
+    m_sharedData->encryptedExpireSeconds = appConfig->option<Config::expire_encrypted_tab_seconds>();
+    m_sharedData->tabsEncrypted = appConfig->option<Config::encrypt_tabs>();
     m_sharedData->saveDelayMsOnItemAdded = appConfig->option<Config::save_delay_ms_on_item_added>();
     m_sharedData->saveDelayMsOnItemModified = appConfig->option<Config::save_delay_ms_on_item_modified>();
     m_sharedData->saveDelayMsOnItemRemoved = appConfig->option<Config::save_delay_ms_on_item_removed>();
@@ -703,6 +840,9 @@ void ClipboardServer::loadSettings(AppConfig *appConfig)
 
     m_textTabSize = appConfig->option<Config::text_tab_width>();
     m_saveOnDeactivate = appConfig->option<Config::save_on_app_deactivated>();
+
+    if ( platformNativeInterface()->canPreventScreenCapture() )
+        setPreventScreenCapture(appConfig->option<Config::prevent_screen_capture>());
 
     if (m_monitor) {
         stopMonitoring();
@@ -741,6 +881,12 @@ void ClipboardServer::loadSettings(AppConfig *appConfig)
     m_updateThemeTimer.stop();
 
     COPYQ_LOG("Configuration loaded");
+    m_loadingSettings = false;
+
+    const QList<ClientMessage> pendingMessages = std::move(m_pendingMessages);
+    Q_ASSERT(m_pendingMessages.isEmpty());
+    for (const auto &msg : pendingMessages)
+        onClientMessageReceived(msg.message, msg.messageCode, msg.clientId);
 }
 
 void ClipboardServer::shortcutActivated(QxtGlobalShortcut *shortcut)

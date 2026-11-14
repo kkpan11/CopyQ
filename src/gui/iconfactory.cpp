@@ -3,8 +3,8 @@
 #include "iconfactory.h"
 
 #include "gui/fix_icon_id.h"
-#include "gui/icons.h"
 #include "gui/iconfont.h"
+#include "gui/fromiconid.h"
 #include "gui/pixelratio.h"
 
 #include <QBitmap>
@@ -73,15 +73,9 @@ QString sessionName()
     return qApp->property("CopyQ_session_name").toString();
 }
 
-QString textFromEnv(const char *envVaribleName)
-{
-    const auto name = qgetenv(envVaribleName);
-    return QString::fromUtf8(name);
-}
-
 QColor colorFromEnv(const char *envVaribleName)
 {
-    return QColor( textFromEnv(envVaribleName) );
+    return QColor( qEnvironmentVariable(envVaribleName) );
 }
 
 QColor sessionNameToColor(const QString &name)
@@ -125,7 +119,7 @@ QColor &sessionIconColorVariable()
 
 QString &sessionIconTagVariable()
 {
-    static QString tag = textFromEnv("COPYQ_SESSION_TAG");
+    static QString tag = qEnvironmentVariable("COPYQ_SESSION_TAG");
     return tag;
 }
 
@@ -265,7 +259,7 @@ QPixmap drawFontIcon(ushort id, int w, int h, const QColor &color)
 
     // Center the icon to whole pixels so it stays sharp.
     const auto flags = Qt::AlignTop | Qt::AlignLeft;
-    const auto iconText = QString(QChar(id));
+    const auto iconText = fromIconId(id);
     auto boundingRect = painter.boundingRect(0, 0, w, h, flags, iconText);
     const auto x = w - boundingRect.width();
     // If icon is wider, assume that a tag will be rendered and align image to the right.
@@ -382,11 +376,7 @@ public:
         return taggedIcon(&pixmap);
     }
 
-    QList<QSize> availableSizes(QIcon::Mode, QIcon::State)
-#if QT_VERSION < QT_VERSION_CHECK(6,0,0)
-        const
-#endif
-        override
+    QList<QSize> availableSizes(QIcon::Mode, QIcon::State) override
     {
         static const auto sizes = QList<QSize>()
                 << QSize(32, 32)
@@ -530,6 +520,14 @@ public:
         return new AppIconEngine(*this);
     }
 
+    // Return the theme icon name so that platform integrations (e.g. KDE
+    // Plasma) can identify the icon directly instead of falling back to
+    // glob-based lookups that produce spurious QString::arg warnings.
+    QString iconName() override
+    {
+        return QStringLiteral(COPYQ_ICON_NAME);
+    }
+
     QPixmap doCreatePixmap(QSize size, QIcon::Mode, QIcon::State, QPainter *) override
     {
         // If copyq-normal icon exist in theme, omit changing color.
@@ -605,10 +603,10 @@ QIcon getIcon(const QString &themeName, unsigned short id)
 
 QIcon getIcon(const QVariant &iconOrIconId)
 {
-    if (iconOrIconId.canConvert(QVariant::UInt))
+    if (iconOrIconId.canConvert<uint>())
         return getIcon( QString(), iconOrIconId.value<ushort>() );
 
-    if (iconOrIconId.canConvert(QVariant::Icon))
+    if (iconOrIconId.canConvert<QIcon>())
         return iconOrIconId.value<QIcon>();
 
     return QIcon();
@@ -665,7 +663,7 @@ QColor getDefaultIconColor(const QWidget &widget, bool selected)
 {
     const QWidget *parent = &widget;
     while ( parent->parentWidget()
-            && !parent->isTopLevel()
+            && !parent->isWindow()
             && !parent->testAttribute(Qt::WA_OpaquePaintEvent) )
     {
         parent = parent->parentWidget();

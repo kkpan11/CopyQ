@@ -3,12 +3,9 @@
 #include "itemwidget.h"
 
 #include "common/command.h"
-#include "common/contenttype.h"
-#include "common/mimetypes.h"
 #include "item/itemeditor.h"
 
 #include <QAbstractItemModel>
-#include <QApplication>
 #include <QDesktopServices>
 #include <QEvent>
 #include <QMimeData>
@@ -80,7 +77,7 @@ bool ItemWidget::filterMouseEvents(QTextEdit *edit, QEvent *event)
 
     case QEvent::MouseButtonPress:
     case QEvent::MouseButtonDblClick: {
-        QMouseEvent *e = static_cast<QMouseEvent*>(event);
+        auto *e = static_cast<QMouseEvent*>(event);
 
         if ( !canMouseInteract(*e) )
             allowMouseInteraction = false;
@@ -91,7 +88,7 @@ bool ItemWidget::filterMouseEvents(QTextEdit *edit, QEvent *event)
     }
 
     case QEvent::MouseMove: {
-        QMouseEvent *e = static_cast<QMouseEvent*>(event);
+        auto *e = static_cast<QMouseEvent*>(event);
 
         if ( !canMouseInteract(*e) )
             allowMouseInteraction = false;
@@ -100,7 +97,7 @@ bool ItemWidget::filterMouseEvents(QTextEdit *edit, QEvent *event)
     }
 
     case QEvent::MouseButtonRelease: {
-        QMouseEvent *e = static_cast<QMouseEvent*>(event);
+        auto *e = static_cast<QMouseEvent*>(event);
 
         if ( canMouseInteract(*e) && edit->textCursor().hasSelection() )
             edit->copy();
@@ -159,7 +156,7 @@ QVariant ItemScriptable::call(const QString &method, const QVariantList &argumen
 
 QVariant ItemScriptable::eval(const QString &script)
 {
-    return call("eval", QVariantList() << script);
+    return call("eval", {script});
 }
 
 QVariantList ItemScriptable::currentArguments()
@@ -200,6 +197,7 @@ bool ItemSaverInterface::canMoveItems(const QList<QModelIndex> &)
 
 void ItemSaverInterface::itemsRemovedByUser(const QList<QPersistentModelIndex> &)
 {
+    /* No-op default: subclasses override to handle user-initiated removal */
 }
 
 QVariantMap ItemSaverInterface::copyItem(const QAbstractItemModel &, const QVariantMap &itemData)
@@ -209,6 +207,7 @@ QVariantMap ItemSaverInterface::copyItem(const QAbstractItemModel &, const QVari
 
 void ItemSaverInterface::setFocus(bool)
 {
+    /* No-op default: subclasses override to handle focus changes */
 }
 
 ItemWidget *ItemLoaderInterface::create(const QVariantMap &, QWidget *, bool) const
@@ -256,11 +255,6 @@ bool ItemLoaderInterface::matches(const QModelIndex &, const ItemFilter &) const
     return false;
 }
 
-QObject *ItemLoaderInterface::tests(const TestInterfacePtr &) const
-{
-    return nullptr;
-}
-
 const QObject *ItemLoaderInterface::signaler() const
 {
     return nullptr;
@@ -269,6 +263,11 @@ const QObject *ItemLoaderInterface::signaler() const
 ItemScriptable *ItemLoaderInterface::scriptableObject()
 {
     return nullptr;
+}
+
+QVariant ItemLoaderInterface::scriptCallback(const QVariantList &)
+{
+    return {};
 }
 
 QVector<Command> ItemLoaderInterface::commands() const
@@ -290,4 +289,3 @@ QObject *ItemLoaderInterface::createExternalEditor(const QModelIndex &, const QV
 {
     return nullptr;
 }
-

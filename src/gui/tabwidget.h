@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef TABWIDGET_H
-#define TABWIDGET_H
+#pragma once
 
-#include <QHash>
+
+#include <QMap>
 #include <QTabBar>
 #include <QWidget>
-
-#include <memory>
 
 class QMainWindow;
 class QMimeData;
@@ -46,6 +44,8 @@ public:
     /** Return path of tab in tree or label in tab bar. */
     QString tabName(int tabIndex) const;
 
+    int tabIndex(const QString &tabName) const;
+
     void setTabName(int tabIndex, const QString &tabName);
 
     void setTabItemCountVisible(bool visible);
@@ -79,6 +79,7 @@ public:
     void setTabItemCount(const QString &tabName, int itemCount);
 
     void setTabsOrder(const QStringList &tabs);
+    void reorderTabs(const QStringList &tabs);
 
 signals:
     /// Tabs moved in tab bar.
@@ -90,7 +91,7 @@ signals:
     void tabRenamed(const QString &newName, int index);
     void currentChanged(int tabIndex, int oldTabIndex);
     void tabCloseRequested(int);
-    void dropItems(const QString &tabName, const QMimeData *data);
+    void dropItems(const QString &tabName, const QMimeData *data, bool *accepted);
 
 protected:
     bool eventFilter(QObject *object, QEvent *event) override;
@@ -118,11 +119,9 @@ private:
     bool m_hideTabBar;
 
     QStringList m_collapsedTabs;
-    QHash<QString, int> m_tabItemCounters;
+    QMap<QWidget*, int> m_tabItemCounters;
 
     bool m_showTabItemCount;
 
     bool m_ignoreCurrentTabChanges = false;
 };
-
-#endif // TABWIDGET_H

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef TESTINTERFACE_H
-#define TESTINTERFACE_H
+#pragma once
+
 
 #include "common/clipboardmode.h"
 
@@ -11,6 +11,9 @@
 #include <QtContainerFwd>
 
 #include <memory>
+
+class QRegularExpression;
+class QProcess;
 
 /**
  * Interface for tests.
@@ -22,8 +25,6 @@ public:
         ReadErrors = 0,
         // Read all stderr.
         ReadAllStderr = 1,
-        // Read errors from stderr but omit single exception in script.
-        ReadErrorsWithoutScriptException = 2
     };
 
     TestInterface() = default;
@@ -41,6 +42,8 @@ public:
 
     /// Return true if GUI server is not running.
     virtual bool isServerRunning() = 0;
+
+    virtual QString executable() = 0;
 
     /// Run client with given @a arguments and input and read outputs and return exit code.
     virtual int run(const QStringList &arguments, QByteArray *stdoutData = nullptr,
@@ -97,12 +100,16 @@ public:
     /// Set environment variable for test.
     virtual void setEnv(const QString &name, const QString &value) = 0;
 
+    /// Ignore specific client and server errors.
+    virtual void ignoreErrors(const QRegularExpression &re) = 0;
+
     virtual bool writeOutErrors(const QByteArray &errors) = 0;
+
+    /// Start a client process with the given arguments without waiting for completion.
+    virtual bool startClient(QProcess *p, const QStringList &arguments) = 0;
 
     TestInterface(const TestInterface &) = delete;
     TestInterface &operator=(const TestInterface &) = delete;
 };
 
 using TestInterfacePtr = std::shared_ptr<TestInterface>;
-
-#endif // TESTINTERFACE_H

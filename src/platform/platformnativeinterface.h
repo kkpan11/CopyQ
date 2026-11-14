@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef PLATFORMNATIVEINTERFACE_H
-#define PLATFORMNATIVEINTERFACE_H
+#pragma once
+
 
 #include <QWidget> // WId
 
@@ -15,9 +15,11 @@ class QKeyEvent;
 
 class PlatformWindow;
 class PlatformClipboard;
+class ClipboardConnection;
 
 using PlatformWindowPtr = std::shared_ptr<PlatformWindow>;
 using PlatformClipboardPtr = std::shared_ptr<PlatformClipboard>;
+using ClipboardConnectionPtr = std::unique_ptr<ClipboardConnection>;
 
 /**
  * Interface for platform dependent code.
@@ -60,6 +62,12 @@ public:
     virtual void setAutostartEnabled(bool enable) = 0;
 
     /**
+     * Prevent screen capture for the window and return true if successfully set.
+     */
+    virtual bool setPreventScreenCapture(WId winId, bool prevent) = 0;
+    virtual bool canPreventScreenCapture() = 0;
+
+    /**
      * Create QCoreApplication object for console output (to show help or version and quit).
      */
     virtual QCoreApplication *createConsoleApplication(int &argc, char **argv) = 0;
@@ -70,12 +78,7 @@ public:
     virtual QApplication *createServerApplication(int &argc, char **argv) = 0;
 
     /**
-     * Create QGuiApplication object for clipboard monitor.
-     */
-    virtual QGuiApplication *createMonitorApplication(int &argc, char **argv) = 0;
-
-    /**
-     * Create QGuiApplication object that provides clipboard.
+     * Create QGuiApplication object that monitors or provides clipboard.
      */
     virtual QGuiApplication *createClipboardProviderApplication(int &argc, char **argv) = 0;
 
@@ -130,10 +133,14 @@ public:
      */
     virtual QString themePrefix() = 0;
 
+    /**
+     * Return the resident set size (RSS) of the given process in bytes.
+     * Returns -1 if not supported or process not accessible.
+     */
+    virtual qint64 processResidentMemoryBytes(qint64 pid) = 0;
+
     PlatformNativeInterface(const PlatformNativeInterface &) = delete;
     PlatformNativeInterface &operator=(const PlatformNativeInterface &) = delete;
 };
 
 PlatformNativeInterface *platformNativeInterface();
-
-#endif // PLATFORMNATIVEINTERFACE_H

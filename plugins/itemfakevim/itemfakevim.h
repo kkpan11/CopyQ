@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef ITEMFAKEVIM_H
-#define ITEMFAKEVIM_H
+#pragma once
+
 
 #include "item/itemwidgetwrapper.h"
 
@@ -37,8 +37,6 @@ public:
 
     QWidget *createSettingsWidget(QWidget *parent) override;
 
-    QObject *tests(const TestInterfacePtr &test) const override;
-
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 signals:
@@ -56,5 +54,3 @@ private:
 
     int m_oldCursorFlashTime = -1;
 };
-
-#endif // ITEMFAKEVIM_H

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef CLIPBOARDSPY_H
-#define CLIPBOARDSPY_H
+#pragma once
+
 
 #include "common/clipboardmode.h"
+#include "platform/platformclipboard.h"
 #include "platform/platformnativeinterface.h"
 
 #include <QObject>
@@ -15,7 +16,7 @@ public:
     explicit ClipboardSpy(ClipboardMode mode, const QByteArray &owner);
 
     /// Actively wait for clipboard/selection to change.
-    void wait(int ms = 2000, int checkIntervalMs = 100);
+    void wait(int ms = 2000, int checkIntervalMs = 8000);
 
     bool setClipboardData(const QVariantMap &data);
 
@@ -23,16 +24,18 @@ public:
 
     void stop();
 
+
 signals:
     void changed();
     void stopped();
 
 private:
-    bool check();
+    void emitChangeIfChanged();
 
     ClipboardMode m_mode;
     PlatformClipboardPtr m_clipboard;
+    ClipboardConnectionPtr m_connection;
     QByteArray m_oldOwnerData;
+    bool m_settingClipboard = false;
+    bool m_stopped = false;
 };
-
-#endif // CLIPBOARDSPY_H

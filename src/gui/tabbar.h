@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef TABBAR_H
-#define TABBAR_H
+#pragma once
+
 
 #include "gui/tabswidgetinterface.h"
 
@@ -33,9 +33,10 @@ public:
 
     void insertTab(int index, const QString &tabName) override;
     void removeTab(int index) override;
+    void moveTab(int from, int to) override;
 
-    void updateCollapsedTabs(QList<QString> *) const override {}
-    void setCollapsedTabs(const QList<QString> &) override {}
+    void updateCollapsedTabs(QList<QString> *) const override { /* Tab collapsing not supported in this implementation */ }
+    void setCollapsedTabs(const QList<QString> &) override { /* Tab collapsing not supported in this implementation */ }
 
     void updateTabIcons(const QHash<QString, QString> &tabIcons) override;
 
@@ -44,12 +45,12 @@ public:
 
     void setCurrentTab(int index) override;
 
-    virtual void adjustSize() override;
+    void adjustSize() override;
 
 signals:
     void tabBarMenuRequested(const QPoint &pos, int tab);
     void tabRenamed(const QString &newName, int index);
-    void dropItems(const QString &tabName, const QMimeData *data);
+    void dropItems(const QString &tabName, const QMimeData *data, bool *accepted);
 
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
@@ -64,5 +65,3 @@ private:
 
     void updateTabStyle(int index);
 };
-
-#endif // TABBAR_H

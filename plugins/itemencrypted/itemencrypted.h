@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef ITEMENCRYPTED_H
-#define ITEMENCRYPTED_H
+#pragma once
+
 
 #include "item/itemwidget.h"
 #include "gui/icons.h"
@@ -100,8 +100,6 @@ public:
 
     ItemSaverPtr initializeTab(const QString &, QAbstractItemModel *model, int maxItems) override;
 
-    QObject *tests(const TestInterfacePtr &test) const override;
-
     const QObject *signaler() const override { return this; }
 
     ItemScriptable *scriptableObject() override;
@@ -142,5 +140,3 @@ private:
     mutable GpgProcessStatus m_gpgProcessStatus;
     QProcess *m_gpgProcess;
 };
-
-#endif // ITEMENCRYPTED_H

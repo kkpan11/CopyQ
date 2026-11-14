@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef ITEMIMAGE_H
-#define ITEMIMAGE_H
+#pragma once
+
 
 #include "gui/icons.h"
 #include "item/itemwidget.h"
@@ -69,8 +69,6 @@ public:
 
     QStringList formatsToSave() const override;
 
-    QObject *tests(const TestInterfacePtr &test) const override;
-
     void applySettings(QSettings &settings) override;
 
     void loadSettings(const QSettings &settings) override;
@@ -86,5 +84,3 @@ private:
     QString m_svgEditor;
     std::unique_ptr<Ui::ItemImageSettings> ui;
 };
-
-#endif // ITEMIMAGE_H

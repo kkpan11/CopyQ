@@ -6,6 +6,7 @@
 
 #include <QCoreApplication>
 #include <QSocketNotifier>
+#include <QVariant>
 
 #include <csignal>
 #include <sys/socket.h>
@@ -20,6 +21,11 @@ enum SignalAction { Write, Read, Count };
 int signalFd[SignalAction::Count];
 QSocketNotifier *signalFdNotifier = nullptr;
 
+struct SignalData {
+    qint64 pid;
+    int code;
+};
+
 /**
  * Catch Unix signal.
  *
@@ -28,29 +34,34 @@ QSocketNotifier *signalFdNotifier = nullptr;
  * a mutex when trying to create new QString from this handler. Also note that creating
  * QSettings recursively can result in resetting application settings.
  */
-void exitSignalHandler(int)
+void exitSignalHandler(int code)
 {
-    const qint64 pid = QCoreApplication::applicationPid();
-    const auto written = ::write(signalFd[SignalAction::Write], &pid, sizeof(pid));
+    const SignalData data{QCoreApplication::applicationPid(), code};
+    const auto written = ::write(signalFd[SignalAction::Write], &data, sizeof(data));
     if (written == -1)
-        log("Failed to handle signal!", LogError);
+        log("Failed to write a Unix signal data", LogError);
 }
 
 void handleSignal()
 {
     signalFdNotifier->setEnabled(false);
 
-    qint64 pid;
-    if ( ::read(signalFd[SignalAction::Read], &pid, sizeof(pid)) != sizeof(pid) ) {
-        COPYQ_LOG("Incorrect number of bytes read from Unix signal socket!");
-        signalFdNotifier->setEnabled(true);
-    } else if (pid != QCoreApplication::applicationPid()) {
-        COPYQ_LOG("Wrong PID written to Unix signal socket!");
-        signalFdNotifier->setEnabled(true);
+    SignalData data;
+
+    if ( ::read(signalFd[SignalAction::Read], &data, sizeof(data)) != sizeof(data) ) {
+        log("Failed to read a Unix signal data", LogError);
+    } else if (data.pid != QCoreApplication::applicationPid()) {
+        log("PID not matching on a Unix signal", LogError);
     } else {
-        COPYQ_LOG("Terminating application on signal.");
-        QCoreApplication::exit();
+        const int exitCode = 128 + data.code;
+        log( QStringLiteral("Terminating application on signal %1").arg(data.code) );
+        auto *app = QCoreApplication::instance();
+        app->setProperty("CopyQ_quitting", QVariant(true));
+        app->setProperty("CopyQ_signal_exit_code", QVariant(exitCode));
+        QCoreApplication::exit(exitCode);
     }
+
+    signalFdNotifier->setEnabled(true);
 }
 
 } // namespace

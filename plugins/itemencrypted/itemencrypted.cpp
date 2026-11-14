@@ -6,23 +6,21 @@
 #include "common/command.h"
 #include "common/config.h"
 #include "common/contenttype.h"
-#include "common/log.h"
 #include "common/mimetypes.h"
 #include "common/shortcuts.h"
 #include "common/processsignals.h"
 #include "common/textdata.h"
 #include "gui/icons.h"
 #include "gui/iconwidget.h"
+#include "gui/fromiconid.h"
 #include "item/serialize.h"
 
-#ifdef HAS_TESTS
-#   include "tests/itemencryptedtests.h"
-#endif
-
 #include <QAbstractItemModel>
+#include <QDebug>
 #include <QDir>
 #include <QIODevice>
 #include <QLabel>
+#include <QLoggingCategory>
 #include <QModelIndex>
 #include <QSettings>
 #include <QTextEdit>
@@ -41,6 +39,9 @@ const QLatin1String configEncryptTabs("encrypt_tabs");
 
 const int maxItemCount = 100'000;
 
+Q_DECLARE_LOGGING_CATEGORY(plugin)
+Q_LOGGING_CATEGORY(plugin, "copyq.plugin.itemencrypted")
+
 bool waitOrTerminate(QProcess *p, int timeoutMs)
 {
     p->waitForStarted();
@@ -58,23 +59,20 @@ bool waitOrTerminate(QProcess *p, int timeoutMs)
 bool verifyProcess(QProcess *p, int timeoutMs = 30000)
 {
     if ( !waitOrTerminate(p, timeoutMs) ) {
-        log( QStringLiteral("ItemEncrypt: Process timed out; stderr: %1")
-             .arg(QString::fromUtf8(p->readAllStandardError())), LogError );
+        qCCritical(plugin) << "Process timed out; stderr:" << p->readAllStandardError();
         return false;
     }
 
     const int exitCode = p->exitCode();
     if ( p->exitStatus() != QProcess::NormalExit ) {
-        log( QStringLiteral("ItemEncrypt: Failed to run GnuPG: %1")
-             .arg(p->errorString()), LogError );
+        qCCritical(plugin) << "Failed to run GnuPG:" << p->errorString();
         return false;
     }
 
     if (exitCode != 0) {
-        const QString errors = p->readAllStandardError();
-        if ( !errors.isEmpty() )
-            log( QStringLiteral("ItemEncrypt: GnuPG stderr:\n%1")
-                 .arg(errors), LogError );
+        if (const QString errors = p->readAllStandardError(); !errors.isEmpty()) {
+            qCCritical(plugin) << "GnuPG stderr:" << errors;
+        }
         return false;
     }
 
@@ -100,20 +98,11 @@ struct GpgVersion {
 GpgVersion parseVersion(const QString &versionOutput)
 {
     const int lineEndIndex = versionOutput.indexOf('\n');
-#if QT_VERSION < QT_VERSION_CHECK(5,15,2)
-    const QStringRef firstLine = versionOutput.midRef(0, lineEndIndex);
-#else
     const auto firstLine = QStringView{versionOutput}.mid(0, lineEndIndex);
-#endif
     const QRegularExpression versionRegex(QStringLiteral(R"( (\d+)\.(\d+))"));
     const QRegularExpressionMatch match = versionRegex.match(firstLine);
-#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
     const int major = match.hasMatch() ? match.capturedView(1).toInt() : 0;
     const int minor = match.hasMatch() ? match.capturedView(2).toInt() : 0;
-#else
-    const int major = match.hasMatch() ? match.capturedRef(1).toInt() : 0;
-    const int minor = match.hasMatch() ? match.capturedRef(2).toInt() : 0;
-#endif
     return GpgVersion{major, minor};
 }
 
@@ -126,20 +115,18 @@ public:
     {
         const auto versionOutput = getGpgVersionOutput(executable);
         if ( !versionOutput.isEmpty() ) {
-            COPYQ_LOG_VERBOSE(
-                QStringLiteral("ItemEncrypt INFO: '%1 --version' output: %2")
-                .arg(executable, versionOutput) );
+            qCDebug(plugin).nospace()
+                << "'" << executable << " --version' output: " << versionOutput;
 
             const GpgVersion version = parseVersion(versionOutput);
             m_isSupported = version.major >= 2;
-            COPYQ_LOG( QStringLiteral("ItemEncrypt INFO: %1 gpg version: %2.%3")
-                    .arg(m_isSupported ? "Supported" : "Unsupported")
-                    .arg(version.major)
-                    .arg(version.minor) );
+            qCDebug(plugin).nospace()
+                << (m_isSupported ? "Supported" : "Unsupported")
+                << " gpg version: " << version.major << "." << version.minor;
 
             const bool needsSecring = version.major == 2 && version.minor == 0;
 
-            const QString path = getConfigurationFilePath("");
+            const QString path = configurationFilePath("");
             m_pubring = path + ".pub";
             m_pubringNative = QDir::toNativeSeparators(m_pubring);
             if (needsSecring) {
@@ -330,8 +317,7 @@ void startGenerateKeysProcess(QProcess *process, bool useTransientPasswordlessKe
 
 QString exportImportGpgKeys()
 {
-    const auto error = exportGpgKey();
-    if ( !error.isEmpty() )
+    if (const auto error = exportGpgKey(); !error.isEmpty())
         return error;
 
     return importGpgKey();
@@ -371,7 +357,7 @@ bool ItemEncryptedSaver::saveItems(const QString &, const QAbstractItemModel &mo
             QModelIndex index = model.index(i, 0);
             QVariantMap dataMap = index.data(contentType::data).toMap();
             for (auto it = dataMap.begin(); it != dataMap.end(); ++it) {
-                if (it.value().type() != QVariant::ByteArray)
+                if (it.value().typeId() != QMetaType::QByteArray)
                     it.value() = it.value().toByteArray();
             }
             stream << dataMap;
@@ -381,7 +367,7 @@ bool ItemEncryptedSaver::saveItems(const QString &, const QAbstractItemModel &mo
     bytes = readGpgOutput(QStringList("--encrypt"), bytes);
     if ( bytes.isEmpty() ) {
         emitEncryptFailed();
-        log("ItemEncrypt: Failed to read encrypted data", LogError);
+        qCCritical(plugin) << "Failed to read encrypted data";
         return false;
     }
 
@@ -392,7 +378,7 @@ bool ItemEncryptedSaver::saveItems(const QString &, const QAbstractItemModel &mo
 
     if ( stream.status() != QDataStream::Ok ) {
         emitEncryptFailed();
-        log("ItemEncrypt: Failed to write encrypted data", LogError);
+        qCCritical(plugin) << "Failed to write encrypted data";
         return false;
     }
 
@@ -411,7 +397,7 @@ bool ItemEncryptedScriptable::isEncrypted()
         bool ok;
         const int row = arg.toInt(&ok);
         if (ok) {
-            const auto result = call("read", QVariantList() << "?" << row);
+            const auto result = call("read", {QStringLiteral("?"), row});
             if ( result.toByteArray().contains(mimeEncryptedData.data()) )
                 return true;
         }
@@ -437,43 +423,43 @@ QByteArray ItemEncryptedScriptable::decrypt()
 void ItemEncryptedScriptable::encryptItem()
 {
     QVariantMap dataMap;
-    const auto formats = call("dataFormats").toList();
+    const auto formats = call("dataFormats", {}).toList();
     for (const auto &formatValue : formats) {
         const auto format = formatValue.toString();
         if ( !format.startsWith(COPYQ_MIME_PREFIX) ) {
-            const auto data = call("data", QVariantList() << format).toByteArray();
+            const auto data = call("data", {format}).toByteArray();
             dataMap.insert(format, data);
         }
     }
 
-    const auto bytes = call("pack", QVariantList() << dataMap).toByteArray();
+    const auto bytes = call("pack", {dataMap}).toByteArray();
     const auto encryptedBytes = encrypt(bytes);
     if (encryptedBytes.isEmpty())
         return;
 
-    call("setData", QVariantList() << mimeEncryptedData << encryptedBytes);
+    call("setData", {mimeEncryptedData, encryptedBytes});
 
     for (auto it = dataMap.constBegin(); it != dataMap.constEnd(); ++it)
-        call("removeData", QVariantList() << it.key());
+        call("removeData", {it.key()});
 }
 
 void ItemEncryptedScriptable::decryptItem()
 {
-    const auto encryptedBytes = call("data", QVariantList() << mimeEncryptedData).toByteArray();
+    const auto encryptedBytes = call("data", {mimeEncryptedData}).toByteArray();
     const auto itemData = decrypt(encryptedBytes);
     if (itemData.isEmpty())
         return;
 
-    const auto dataMap = call("unpack", QVariantList() << itemData).toMap();
+    const auto dataMap = call("unpack", {itemData}).toMap();
     for (auto it = dataMap.constBegin(); it != dataMap.constEnd(); ++it) {
         const auto &format = it.key();
-        call("setData", QVariantList() << format << dataMap[format]);
+        call("setData", {format, dataMap[format]});
     }
 }
 
 void ItemEncryptedScriptable::encryptItems()
 {
-    const auto dataValueList = call("selectedItemsData").toList();
+    const auto dataValueList = call("selectedItemsData", {}).toList();
 
     QVariantList dataList;
     for (const auto &itemDataValue : dataValueList) {
@@ -488,7 +474,7 @@ void ItemEncryptedScriptable::encryptItems()
             }
         }
 
-        const auto bytes = call("pack", QVariantList() << itemDataToEncrypt).toByteArray();
+        const auto bytes = call("pack", {itemDataToEncrypt}).toByteArray();
         const auto encryptedBytes = encrypt(bytes);
         if (encryptedBytes.isEmpty())
             return;
@@ -497,12 +483,12 @@ void ItemEncryptedScriptable::encryptItems()
         dataList.append(itemData);
     }
 
-    call( "setSelectedItemsData", QVariantList() << QVariant(dataList) );
+    call( "setSelectedItemsData", {QVariant(dataList)} );
 }
 
 void ItemEncryptedScriptable::decryptItems()
 {
-    const auto dataValueList = call("selectedItemsData").toList();
+    const auto dataValueList = call("selectedItemsData", {}).toList();
 
     QVariantList dataList;
     for (const auto &itemDataValue : dataValueList) {
@@ -516,7 +502,7 @@ void ItemEncryptedScriptable::decryptItems()
             if (decryptedBytes.isEmpty())
                 return;
 
-            const auto decryptedItemData = call("unpack", QVariantList() << decryptedBytes).toMap();
+            const auto decryptedItemData = call("unpack", {decryptedBytes}).toMap();
             for (auto it = decryptedItemData.constBegin(); it != decryptedItemData.constEnd(); ++it)
                 itemData.insert(it.key(), it.value());
         }
@@ -524,12 +510,12 @@ void ItemEncryptedScriptable::decryptItems()
         dataList.append(itemData);
     }
 
-    call( "setSelectedItemsData", QVariantList() << QVariant(dataList) );
+    call( "setSelectedItemsData", {QVariant(dataList)} );
 }
 
 void ItemEncryptedScriptable::copyEncryptedItems()
 {
-    const auto dataValueList = call("selectedItemsData").toList();
+    const auto dataValueList = call("selectedItemsData", {}).toList();
     QString text;
     for (const auto &dataValue : dataValueList) {
         if ( !text.isEmpty() )
@@ -545,15 +531,13 @@ void ItemEncryptedScriptable::copyEncryptedItems()
                 const auto itemData = decrypt(encryptedBytes);
                 if (itemData.isEmpty())
                     return;
-                const auto dataMap = call("unpack", QVariantList() << itemData).toMap();
+                const auto dataMap = call("unpack", {itemData}).toMap();
                 text.append( getTextData(dataMap) );
             }
         }
     }
 
-    const auto args = QVariantList()
-            << mimeText << text
-            << mimeHidden << "1";
+    const QVariantList args{mimeText, text, mimeHidden, "1"};
     call("copy", args);
     call("copySelection", args);
 }
@@ -572,7 +556,7 @@ void ItemEncryptedScriptable::pasteEncryptedItems()
         copy('');
         copySelection('');
         )";
-    call("eval", QVariantList() << script);
+    call("eval", {script});
 }
 
 QString ItemEncryptedScriptable::generateTestKeys()
@@ -597,8 +581,7 @@ QString ItemEncryptedScriptable::generateTestKeys()
                       QString::fromUtf8(process.readAllStandardError()) );
     }
 
-    const auto error = exportImportGpgKeys();
-    if ( !error.isEmpty() )
+    if ( const auto error = exportImportGpgKeys(); !error.isEmpty() )
         return error;
 
     for (const auto &keyFileName : keys) {
@@ -671,7 +654,7 @@ void ItemEncryptedLoader::loadSettings(const QSettings &settings)
 QWidget *ItemEncryptedLoader::createSettingsWidget(QWidget *parent)
 {
     ui.reset(new Ui::ItemEncryptedSettings);
-    QWidget *w = new QWidget(parent);
+    auto *w = new QWidget(parent);
     ui->setupUi(w);
 
     ui->plainTextEditEncryptTabs->setPlainText(
@@ -771,7 +754,7 @@ ItemSaverPtr ItemEncryptedLoader::loadItems(const QString &, QAbstractItemModel 
         const int bytesRead = stream.readRawData(encryptedBytes, 4096);
         if (bytesRead == -1) {
             emitDecryptFailed();
-            log("ItemEncrypted: Failed to read encrypted data", LogError);
+            qCCritical(plugin) << "Failed to read encrypted data";
             return nullptr;
         }
         p.write(encryptedBytes, bytesRead);
@@ -790,7 +773,7 @@ ItemSaverPtr ItemEncryptedLoader::loadItems(const QString &, QAbstractItemModel 
     const QByteArray bytes = p.readAllStandardOutput();
     if ( bytes.isEmpty() ) {
         emitDecryptFailed();
-        log("ItemEncrypt: Failed to read encrypted data", LogError);
+        qCCritical(plugin) << "Failed to read encrypted data";
         verifyProcess(&p);
         return nullptr;
     }
@@ -801,7 +784,7 @@ ItemSaverPtr ItemEncryptedLoader::loadItems(const QString &, QAbstractItemModel 
     stream2 >> length;
     if ( stream2.status() != QDataStream::Ok ) {
         emitDecryptFailed();
-        log("ItemEncrypt: Failed to parse item count", LogError);
+        qCCritical(plugin) << "Failed to parse item count";
         return nullptr;
     }
     length = qMin(length, static_cast<quint64>(maxItems)) - static_cast<quint64>(model->rowCount());
@@ -810,7 +793,7 @@ ItemSaverPtr ItemEncryptedLoader::loadItems(const QString &, QAbstractItemModel 
     for ( int i = 0; i < count && stream2.status() == QDataStream::Ok; ++i ) {
         if ( !model->insertRow(i) ) {
             emitDecryptFailed();
-            log("ItemEncrypt: Failed to insert item", LogError);
+            qCCritical(plugin) << "Failed to insert item";
             return nullptr;
         }
         QVariantMap dataMap;
@@ -820,7 +803,7 @@ ItemSaverPtr ItemEncryptedLoader::loadItems(const QString &, QAbstractItemModel 
 
     if ( stream2.status() != QDataStream::Ok ) {
         emitDecryptFailed();
-        log("ItemEncrypt: Failed to decrypt item", LogError);
+        qCCritical(plugin) << "Failed to decrypt item";
         return nullptr;
     }
 
@@ -833,17 +816,6 @@ ItemSaverPtr ItemEncryptedLoader::initializeTab(const QString &, QAbstractItemMo
         return nullptr;
 
     return createSaver();
-}
-
-QObject *ItemEncryptedLoader::tests(const TestInterfacePtr &test) const
-{
-#ifdef HAS_TESTS
-    QObject *tests = new ItemEncryptedTests(test);
-    return tests;
-#else
-    Q_UNUSED(test)
-    return nullptr;
-#endif
 }
 
 ItemScriptable *ItemEncryptedLoader::scriptableObject()
@@ -861,7 +833,7 @@ QVector<Command> ItemEncryptedLoader::commands() const
     Command c;
     c.internalId = QStringLiteral("copyq_encrypted_encrypt");
     c.name = ItemEncryptedLoader::tr("Encrypt (needs GnuPG)");
-    c.icon = QString(QChar(IconLock));
+    c.icon = fromIconId(IconLock);
     c.input = "!OUTPUT";
     c.output = mimeEncryptedData;
     c.inMenu = true;
@@ -872,7 +844,7 @@ QVector<Command> ItemEncryptedLoader::commands() const
     c = Command();
     c.internalId = QStringLiteral("copyq_encrypted_decrypt");
     c.name = ItemEncryptedLoader::tr("Decrypt");
-    c.icon = QString(QChar(IconUnlock));
+    c.icon = fromIconId(IconUnlock);
     c.input = mimeEncryptedData;
     c.output = mimeItems;
     c.inMenu = true;
@@ -883,7 +855,7 @@ QVector<Command> ItemEncryptedLoader::commands() const
     c = Command();
     c.internalId = QStringLiteral("copyq_encrypted_decrypt_and_copy");
     c.name = ItemEncryptedLoader::tr("Decrypt and Copy");
-    c.icon = QString(QChar(IconUnlockKeyhole));
+    c.icon = fromIconId(IconUnlockKeyhole);
     c.input = mimeEncryptedData;
     c.inMenu = true;
     c.cmd = "copyq: plugins.itemencrypted.copyEncryptedItems()";
@@ -893,7 +865,7 @@ QVector<Command> ItemEncryptedLoader::commands() const
     c = Command();
     c.internalId = QStringLiteral("copyq_encrypted_decrypt_and_paste");
     c.name = ItemEncryptedLoader::tr("Decrypt and Paste");
-    c.icon = QString(QChar(IconUnlockKeyhole));
+    c.icon = fromIconId(IconUnlockKeyhole);
     c.input = mimeEncryptedData;
     c.inMenu = true;
     c.cmd = "copyq: plugins.itemencrypted.pasteEncryptedItems()";

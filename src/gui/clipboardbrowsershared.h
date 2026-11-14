@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#ifndef CLIPBOARDBROWSERSHARED_H
-#define CLIPBOARDBROWSERSHARED_H
+#pragma once
 
+
+#include "common/navigationstyle.h"
+#include "common/encryption.h"
 #include "gui/menuitems.h"
 #include "gui/theme.h"
 
@@ -12,17 +14,20 @@
 class ActionHandler;
 class ItemFactory;
 class NotificationDaemon;
+class PasswordPrompt;
 
 struct ClipboardBrowserShared {
     QString editor;
     int maxItems = 100;
     bool textWrap = true;
-    bool viMode = false;
+    NavigationStyle navigationStyle = NavigationStyle::Default;
     bool saveOnReturnKey = false;
     bool moveItemOnReturnKey = false;
     bool showSimpleItems = false;
     bool numberSearch = false;
     int minutesToExpire = 0;
+    int encryptedExpireSeconds = 0;
+    bool tabsEncrypted = false;
     int saveDelayMsOnItemAdded = 0;
     int saveDelayMsOnItemModified = 0;
     int saveDelayMsOnItemRemoved = 0;
@@ -32,10 +37,10 @@ struct ClipboardBrowserShared {
     ItemFactory *itemFactory = nullptr;
     ActionHandler *actions = nullptr;
     NotificationDaemon *notifications = nullptr;
+    PasswordPrompt *passwordPrompt = nullptr;
     Theme theme;
     MenuItems menuItems;
+    Encryption::EncryptionKey encryptionKey;
 };
 
 using ClipboardBrowserSharedPtr = std::shared_ptr<ClipboardBrowserShared>;
-
-#endif // CLIPBOARDBROWSERSHARED_H

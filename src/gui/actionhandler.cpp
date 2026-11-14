@@ -5,21 +5,22 @@
 #include "common/appconfig.h"
 #include "common/action.h"
 #include "common/actiontablemodel.h"
+#include "common/commandstatus.h"
 #include "common/common.h"
-#include "common/contenttype.h"
 #include "common/display.h"
 #include "common/log.h"
 #include "common/mimetypes.h"
 #include "common/textdata.h"
+#include "platform/platformnativeinterface.h"
 #include "gui/actionhandlerdialog.h"
 #include "gui/icons.h"
 #include "gui/notification.h"
 #include "gui/notificationdaemon.h"
-#include "gui/clipboardbrowser.h"
 #include "gui/mainwindow.h"
 #include "item/serialize.h"
 
 #include <QDialog>
+#include <QTimer>
 
 #include <cmath>
 
@@ -36,10 +37,36 @@ QString actionDescription(const Action &action)
 
 } // namespace
 
+QStringList ActionHandler::copyqStats() const
+{
+    QStringList lines;
+    for (auto it = m_actions.constBegin(); it != m_actions.constEnd(); ++it) {
+        constexpr int maxDescriptionLength = 150;
+        QString desc = actionDescription(*it.value()).simplified();
+        desc.replace(QLatin1Char('\''), QLatin1Char('"'));
+        if (desc.size() > maxDescriptionLength)
+            desc = desc.left(maxDescriptionLength) + QStringLiteral("...");
+
+        const QList<qint64> pids = it.value()->processIds();
+        QStringList pidParts;
+        for (const qint64 pid : pids) {
+            const qint64 rss = platformNativeInterface()->processResidentMemoryBytes(pid);
+            if (rss >= 0) {
+                pidParts.append(QStringLiteral("pid=%1 rss=%2 (%3)")
+                    .arg(pid).arg(rss).arg(formatDataSize(rss)));
+            } else {
+                pidParts.append(QStringLiteral("pid=%1").arg(pid));
+            }
+        }
+        lines.append( QStringLiteral("ACTION '%1' | %2").arg(desc, pidParts.join(QStringLiteral(", "))) );
+    }
+    return lines;
+}
+
 ActionHandler::ActionHandler(NotificationDaemon *notificationDaemon, QObject *parent)
     : QObject(parent)
     , m_notificationDaemon(notificationDaemon)
-    , m_actionModel(new ActionTableModel(parent))
+    , m_actionModel(new ActionTableModel(this))
 {
 }
 
@@ -105,14 +132,25 @@ void ActionHandler::action(Action *action)
 void ActionHandler::terminateAction(int id)
 {
     Action *action = m_actions.value(id);
-    if (action)
-        action->terminate();
+    if (!action || !action->isRunning())
+        return;
+
+    action->requestTerminate();
+    const int terminateTimeout =
+        AppConfig().option<Config::terminate_action_timeout_ms>();
+    QTimer::singleShot(terminateTimeout, action, &Action::requestKill);
+}
+
+Action *ActionHandler::findAction(int id) const
+{
+    auto it = m_actions.find(id);
+    return it != m_actions.end() ? it.value() : nullptr;
 }
 
 void ActionHandler::closeAction(Action *action)
 {
     m_actions.remove(action->id());
-    m_internalActions.remove(action->id());
+    const bool isInternal = m_internalActions.remove(action->id());
 
     if ( action->actionFailed() ) {
         const auto msg = tr("Error: %1").arg(action->errorString());
@@ -123,7 +161,15 @@ void ActionHandler::closeAction(Action *action)
         COPYQ_LOG( QStringLiteral("Exit code %1 (on logout?) with command: %2")
                    .arg(action->exitCode())
                    .arg(action->commandLine()) );
+#elif defined(Q_OS_UNIX)
+    // Ignore SIGINT (2) exit code for internal actions.
+    } else if ( isInternal && action->exitCode() == 128 + 2 ) {
+        COPYQ_LOG( QStringLiteral("Internal action interrupted on SIGINT: %1")
+                  .arg(actionDescription(*action)) );
 #endif
+    } else if ( isInternal && action->exitCode() == CommandStop ) {
+        COPYQ_LOG( QStringLiteral("Internal action interrupted: %1")
+                  .arg(actionDescription(*action)) );
     } else if ( action->exitCode() != 0 ) {
         const auto msg = tr("Exit code: %1").arg(action->exitCode());
         showActionErrors(action, msg, IconCircleXmark);
@@ -138,7 +184,11 @@ void ActionHandler::closeAction(Action *action)
 void ActionHandler::showActionErrors(Action *action, const QString &message, ushort icon)
 {
     m_actionModel->actionFailed(action, message);
+#if QT_VERSION >= QT_VERSION_CHECK(6,10,0)
+    QtPrivate::QHashCombine hash(0);
+#else
     QtPrivate::QHashCombine hash;
+#endif
     const auto notificationId = QString::number( hash(hash(0, action->commandLine()), message) );
     if ( m_notificationDaemon->findNotification(notificationId) )
         return;
@@ -150,10 +200,9 @@ void ActionHandler::showActionErrors(Action *action, const QString &message, ush
 
     const int maxWidthPoints =
             AppConfig().option<Config::notification_maximum_width>();
-    const QString command = action->commandLine()
-            .replace(QLatin1String("copyq eval --"), QLatin1String("copyq:"));
+    const QString command = action->commandLine();
     const QString name = action->name().isEmpty()
-            ? QString(command).replace('\n', QLatin1String(" "))
+            ? command.simplified()
             : action->name();
     const QString format = tr("Command %1").arg(quoteString("%1"));
     const QString title = elideText(name, QFont(), format, pointsToPixels(maxWidthPoints));
@@ -165,10 +214,14 @@ void ActionHandler::showActionErrors(Action *action, const QString &message, ush
     for (const auto &line : lines)
         msg.append(QStringLiteral("\n%1. %2").arg(++lineNumber, lineNumberWidth).arg(line));
 
-    log(QStringLiteral("%1\n%2").arg(title, msg));
+    auto logMsg = QStringLiteral("%1: %2").arg(title, msg);
+    logMsg.replace(QLatin1Char('\n'), QLatin1String(" | "));
+    log(logMsg, LogWarning);
 
     auto notification = m_notificationDaemon->createNotification(notificationId);
     notification->setTitle(title);
     notification->setMessage(msg, Qt::PlainText);
     notification->setIcon(icon);
+    notification->setUrgency(Notification::Urgency::High);
+    notification->setPersistency(Notification::Persistency::Persistent);
 }

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef WINPLATFORM_H
-#define WINPLATFORM_H
+#pragma once
+
 
 #include "platform/platformnativeinterface.h"
 
 class WinPlatform final : public PlatformNativeInterface
 {
 public:
-    WinPlatform() {}
+    WinPlatform() = default;
 
     PlatformWindowPtr getWindow(WId winId) override;
 
@@ -16,18 +16,18 @@ public:
 
     bool canGetWindowTitle() override { return true; }
 
-    /** Setting application autostart is not implemented for Windows (works just from installer). */
-    bool canAutostart() override { return false; }
+    bool canAutostart() override { return true; }
 
-    bool isAutostartEnabled() override { return false; }
+    bool isAutostartEnabled() override;
 
-    void setAutostartEnabled(bool) override {}
+    void setAutostartEnabled(bool enable) override;
+
+    bool setPreventScreenCapture(WId winId, bool prevent) override;
+    bool canPreventScreenCapture() override { return true; }
 
     QCoreApplication *createConsoleApplication(int &argc, char **argv) override;
 
     QApplication *createServerApplication(int &argc, char **argv) override;
-
-    QGuiApplication *createMonitorApplication(int &argc, char **argv) override;
 
     QGuiApplication *createClipboardProviderApplication(int &argc, char **argv) override;
 
@@ -46,6 +46,6 @@ public:
     QString translationPrefix() override;
 
     QString themePrefix() override;
-};
 
-#endif // WINPLATFORM_H
+    qint64 processResidentMemoryBytes(qint64 pid) override;
+};

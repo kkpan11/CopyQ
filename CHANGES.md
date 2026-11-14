@@ -1,3 +1,575 @@
+# 17.0.0
+
+## Added
+
+- Adds support for GNOME 50 (#3677).
+
+## Changed
+
+- Tab data and state files are moved to XDG-compliant directories,
+  `%LOCALAPPDATA%` on Windows and `~/Library/Application Support` on macOS
+  (#3692, #3693). State path can be changed using `COPYQ_STATE_PATH`
+  environment variable.
+
+  **Important**: This is backwards incompatible. The data and state files are
+  moved when the new app version starts. Older versions of the app will not see
+  these files and basically lose all items.
+
+- FakeVim is updated from upstream repository.
+
+## Fixed
+
+- Fixes audio engine always using a small amount of CPU and indicating (on KDE)
+  that it plays audio (#3684). The engine is initialized only when needed and
+  released after it stops playing all audio.
+
+- Fixes initial script dialog size (#3700). Thanks to @wyf-777.
+
+- Fixes slow tab icon lookups when the app contains many item tabs (#3721).
+  Thanks to @jkindrix (Justin Kindrix).
+
+- Fixes keeping old tabs in configuration (#3722). Thanks to @sakashimaa.
+
+- Windows: Prevents app from attempting (unsuccessfully) to paste to windows
+  the user cannot switch back to (#2556). Thanks to @ntzb.
+
+- Wayland: Fixes global shortcuts failing when portal service starts later or
+  restarts (#3616, #3680).
+
+- Wayland: Fixes global shortcuts in non-default sessions (#3713).
+
+- Wayland: Fixes rebinding global shortcuts on start (#3678).
+  Thanks to @Memoraike (Meow).
+
+- Synchronize plugin: Fixes GUI freeze when removing items and on startup and
+  retrying to remove absent files (#3629, #3697).
+
+# 16.0.0
+
+## Added
+
+- Per-MIME clipboard size limits and OOM protection via `clipboard_mime_size_limit`
+  config option and `COPYQ_CLIPBOARD_MIME_SIZE_LIMIT` environment variable. For
+  example `text/html.*:0;.*:100M` disables storing HTML and sets 100MiB max
+  size for all other formats (this size limit is the default: `.*:100M`).
+
+- AppImage support (`WITH_APPIMAGE` CMake build option).
+
+## Fixed
+
+- Fixed thumbnails hidden for tagged image items if "Show simple items" option
+  is enabled (#3602).
+
+- Fixed window invisible in remote desktop sessions (#3593, #3582, #3400).
+
+- Fixed null characters in concatenated selected items breaking paste in
+  other applications.
+
+- Handle possible file operation errors and locks when synchronizing items to
+  files on disk and shared storage (#3368, #3579).
+
+- Avoids potential crash on fetching very large data in clipboard.
+
+- Wayland: Fixed portal shortcuts handling in non-default app sessions.
+
+- Wayland: Fixed main window shown on startup with tray disabled on wlroots
+  compositors (#3567).
+
+# 15.0.0
+
+## Added
+
+- CSS properties for pinned/notes indicator color and width. See
+  [Plugin Indicators](https://copyq.readthedocs.io/en/latest/theme.html#plugin-indicators).
+
+      ItemPinned { qproperty-pinnedIndicatorColor: rgba(0, 0, 255, 128); }
+      ItemPinned[CopyQ_selected="true"] {
+        qproperty-pinnedIndicatorColor: rgba(255, 204, 0, 255);
+      }
+      ItemNotes { qproperty-notesIndicatorColor: rgba(100, 200, 100, 180); }
+      ItemNotes { qproperty-notesIndicatorWidth: 24; }
+
+- One Dark theme. Thanks to @jetm (Javier Tia).
+
+- Diagnostic information in About dialog and version output for easier
+  troubleshooting.
+
+- Script function `stats()` now includes per-process memory information.
+
+## Changed
+
+- "Show under mouse cursor" shortcut now hides the window if it is already
+  visible (#2272).
+
+- Updated icon font to Font Awesome 7.2.0.
+
+- Dropped private Qt header usage (replaced with public QNativeInterface API).
+
+  *Note for packagers:* The application no longer links against private Qt
+  headers, so it does not need to be rebuilt on Qt minor version updates.
+
+- Dropped support for unmaintained Qt 5 version of the app.
+
+- Improved performance of scripts.
+
+## Fixed
+
+- Fixed blank items appearing in search results.
+
+- Fixed rounded item corners showing wrong background color.
+
+- Fixed item background rendering on some systems and themes (#3495).
+
+- Fixed item vertical misalignment (missing top margin).
+
+- Fixed tray icon not showing before encryption password prompt (#3502).
+
+- Fixed tray menu not showing on Wayland when triggered via shortcut (#3325).
+
+- Fixed version string (#3516).
+
+- Fixed crash when accessing invalid ItemSelection.
+
+- Fixed item scrollbar colors.
+
+- Fixed a memory leak in clipboard monitor process and other long running
+  client processes.
+
+- Windows: Excludes unnecessary test executable and some libraries from
+  installer and portable zip.
+
+# 14.0.0
+
+## Added
+
+- Tab encryption support. Allows encrypting all tab data on disk using a single
+  custom password. Common keychain software to store the password can be also
+  enabled with password expiration (locking tabs).
+
+  *Note for packagers:* This requires QCA and QtKeychain libraries, but it can be
+  disabled at build time with CMake options `WITH_QCA_ENCRYPTION` and
+  `WITH_KEYCHAIN` (#2617).
+
+- Audio playback via `playSound()` script function for playing WAV, MP3 and
+  FLAC files.
+
+  *Note for packagers:* This requires miniaudio library, but it can be disabled
+  at build time with CMake option `WITH_AUDIO`.
+
+- New script function `stats()` for gathering runtime statistics (memory usage,
+  UI elements, tab state, loaded plugins, running actions).
+
+- Nord themes. Thanks to @ArtyomBabiy.
+
+- Theme is applied to the About dialog (#3296).
+
+- Log directory can be changed using `COPYQ_LOG_DIR` environment variable
+  (if `COPYQ_LOG_FILE` is not used).
+
+- GNOME: Clipboard monitoring support using a custom GNOME extension
+  (#2342, #1243).
+
+- X11: Portal for global shortcuts can be enabled with `COPYQ_USE_PORTAL`
+  environment variable.
+
+## Changed
+
+- Long texts in the editor are no longer syntax-highlighted to avoid
+  slowdowns (#3340).
+
+- `ItemSelection()` and `selectItems()` preserve the original selection
+  order (#3271).
+
+- "Show the tray menu" command is excluded from the tray menu (#3353).
+
+- Content dialog now shows data for the first format when opened (#3404).
+
+- Option `close_on_unfocus_extra_delay_ms` can now be changed via `config()` (#3286).
+
+- Use `COPYQ_LOG_FILE` for logging into single file without adding extra suffix
+  for process PID.
+
+- Tests are no longer part of the application (#3274).
+
+- X11: Reduced blocking calls when showing the main window, improving
+  responsiveness after idle (#2877).
+
+## Fixed
+
+- Fixes pinned item duplication on clipboard re-read (#3131, #3042).
+
+- Fixes potential data loss on partial tab rename failure during drag-and-drop.
+
+- Fixes drag-and-drop expanding collapsed tab groups.
+
+- Fixes window becoming invisible when started minimized (#3440).
+
+- Fixes `showAt()` when the main window is maximized; restores original
+  geometry afterward (#3412, #3384).
+
+- Fixes hiding the main window from the tray menu (#3352).
+
+- Fixes overriding selection data in automatic commands (#3324).
+
+- Fixes "Hide from screenshots" option state in Preferences.
+
+- Fixes reading environment variables in correct encoding.
+
+- Fixes copy/paste error handling (#3428).
+
+- Synchronize plugin: Fixes updating items after they are moved (#3424).
+
+- macOS: Fixes tray menu not appearing and crash on paste.
+
+- Windows: Fixes copy/paste with the Win modifier held (#3398).
+
+- Windows: Fixes default installation folder for single-user mode (#3358).
+
+- Windows: Fixes overriding custom `COPYQ_LOG_FILE`.
+
+
+# 13.0.0
+
+## Added
+
+- Windows: Preferences now include auto-start option, previously available only
+  in the installer.
+
+## Changed
+
+- Tabs synchronized with a directory on the disk will now include files from
+  sub-directories (#2638).
+
+- Filtering/searching items in large tabs no longer blocks UI (#3111, #3261).
+
+## Fixed
+
+- Fixes saving edited HTML and setting style in internal editor (#3227).
+
+- Fixes updating selected item colors (#3219).
+
+- Wayland: Fixes clipboard access in KDE Plasma 6.5 (#3228). This requires
+  KGuiAddons library installed on the system.
+
+# 12.0.1
+
+## Fixed
+
+- X11: Fixes registering global shortcuts with modifiers (#3212).
+
+- macOS: Fixes providing builds for Intel architecture.
+
+- Fixes maximum length for session name (it is 16 characters as the error
+  message says, not 15).
+
+# 12.0.0
+
+## Added
+
+- Wayland: Global shortcuts are now registered using Portal if available.
+
+- Black theme (#3142). Thanks to @FadeMind.
+
+- Adds attributes for controlling the dialog window created via `dialog()`
+  (#2947): `.onTop` makes the dialog stay on top of other windows, `.modal`
+  makes the dialog modal (blocks interaction with other windows in the
+  application until closed).
+
+- Adds support showing icon font symbol in notes using
+  `application/x-copyq-item-icon` format.
+
+- Adds support for setting colors in theme files by name. For example:
+  `edit_bg=white`.
+
+## Changed
+
+- Temporary tabs that are not stored on disk will now not expire if
+  configuration changes (#3172).
+
+- Pinned and locked items will not be dropped if tab size (maximum item count)
+  changes (#3008).
+
+- The app now propagates exit code properly if it is aborted or receives a
+  Unix signal (SIGINT, SIGTERM).
+
+- Support for Qt older than 5.15 has been dropped.
+
+- The build now uses Qt 6 by default. Use `cmake -DWITH_QT6=OFF ...` to build
+  the app for Qt 5.
+
+- Windows: The application will be now hidden from screenshots and screen
+  recordings by default (#3165). This can be disabled using option "Hide from
+  screenshots and recordings".
+
+- Logs are now stored in multiple files based on the process and the log
+  records have a slightly different format (start with timestamp).
+
+## Fixes
+
+- Drops unsafe sanitizing QTextDocument fonts (#3156). Qt 6 should handle any
+  rich texts safely now.
+
+- Logging now does not use lock files and avoids crashes if the application
+  loop was not yet started.
+
+- Avoids resetting properties of a tab if it is renamed.
+
+- Fixes setting color for item counter (#2717).
+
+- Fixes editing and providing UTF-8 text by default (#3093).
+
+- Fixes updating item preview if when window is shown.
+
+- Fixes changing synchronization directory for a tab.
+
+- Fixes possible crash if calling a function with unexpected function argument.
+
+- Fixes background of the command line in some themes in FakeVim plugin.
+
+- Fixes renaming tabs with item storing disabled.
+
+- Avoids collapsing tab in the tab tree after it is moved.
+
+- Fixes item counter value after moving the tab in the tab tree.
+
+- Fixes moving tab group with items in the tab tree.
+
+- Linux: Fixes storing the first clipboard change after starting the app and
+  modifying configuration.
+
+- Linux: Avoids exiting on commit data request from the session manager (#3145).
+
+# 11.0.0
+
+## Added
+
+- Adds support for dark/light window title scheme.
+
+- New `frameless_window` option (#2570) toggles the main window frame and title
+  bar (if supported by the window manager):
+
+      copyq toggleConfig frameless_window
+
+- Adds support for localizing command names in the command INI files (#3032):
+
+      [Command]
+      Name = ...
+      Name_cs = ...
+      Name_fr = ...
+      Name_pt_BR = ...
+      Name_pt = ...
+
+- Adds support for showing preview for more image formats
+  (namely ico and webp).
+
+- Adds support for more complex network requests in scripts. New
+  `NetworkRequest` class can be used to set custom headers, HTTP method, number
+  of allowed redirects and timeout.
+
+## Changed
+
+- Avoids hiding the main window on backspace (#3107).
+
+- Enables Vi/Emacs navigation (#3012) in menus, and `Ctrl+[` in Vi and `Ctrl+G`
+  in Emacs to work in many other places as `Esc` key (for example, to hide menus,
+  dialogs). Users can override shortcuts, but not some reserved ones in
+  specific cases (mainly, if the item list or a menu has focus).
+
+- Selections and current items/rows/data in scripts now only relate to the
+  tab selected with `tab(...)` in scripts (this is still by default the
+  selected tab when the command started). Affected script functions:
+  - `move()`
+  - `setData()`
+  - `removeData()`
+  - `selectedItems()`
+  - `selectedItemData()`
+  - `setSelectedItemData()`
+  - `setSelectedItemsData()`
+  - `currentItem()`
+  - `ItemSelection().current()`
+
+- Drops unnecessary timeouts when executing commands and actions from scripts.
+
+- Avoids fetching and passing clipboard to `action()`/`execute()` if the
+  commands do not contains `%1` placeholder. This can improve performance.
+
+## Fixed
+
+- Fixes `dialog()`: custom size, layout and resizing (#3003).
+
+- Fixes overriding filter/search string with `filter()` (previously the new
+  value was appended to the current filter).
+
+- Fixes refocusing the item after editing its notes.
+
+- Synchronize plugin: Fixes missing data in the last item when tab is full.
+
+- Windows: Fixes the icon for uninstaller (#2864).
+
+- Fixes build for Qt 6.9 and above.
+
+- Fixes potentially misconfigured log file path at app start (#3087).
+
+- Linux: Avoids auto-hiding the main window when moved on some window managers
+  (#3119).
+
+# 10.0.0
+
+## Added
+
+- Emacs navigation key-bindings support.
+
+- Adds support for setting urgency and persistency to notifications. Script
+  function `notification()` takes new arguments: '.urgency' (low, normal, high,
+  critical), '.persistent' (toggle persistent notification)
+
+## Changed
+
+- Updates icon font from Font-Awesome 6.7.2.
+
+- On Windows, the main window is shown when starting the application using
+  the program icon (#2965).
+
+- Calling `exit()` script function prints "Terminating server" on stderr
+  instead of stdout.
+
+## Fixed
+
+- Fixes item selection with Ctrl+Space (#2850).
+
+- Fixes confirming exit if any commands are running.
+
+- Fixes selecting specific row on search (#2770).
+
+- Clipboard data cloning will be now aborted if the data changes during the
+  process. This avoids using incomplete data in rare cases.
+
+- Fixes contrast of the selected row number color (#2887). The row number text
+  color of selected item is set to the same color as item text by default. This
+  can be overridden via "Edit Theme" button using option `num_sel_fg`.
+
+- Fixes internal editor syntax highlighting for numbers containing separators
+  (for example `100_000`, `0x1234_abcd`) and avoids incorrectly highlighting
+  multiple lines as regular expression in some cases.
+
+- On GNOME (Wayland session), the clipboard monitor and provider processes run
+  in XWayland mode because GNOME does not support Wayland data control
+  protocol. This behavior can be skipped by settings `QT_QPA_PLATFORM`
+  environment variable to "wayland" (or other value).
+
+- On Wayland compositors, fixes unnecessary application start delay if
+  clipboard access (the data control protocol) is not supported.
+
+- On Linux, the "Ignore items with no or single character" predefined command
+  properly avoids synchronizing empty text or single character.
+
+- On Linux, fixes waiting on keyboard modifiers release when synchronizing
+  selection.
+
+- Avoids recursive item preview updates when using display commands.
+
+- Avoids removing items if drag'n'drop action fails.
+
+- Wayland: Fixes crash if getting owned clipboard data.
+
+- Wayland: Fixes setting UTF-8 text on broken GNOME's XWayland.
+
+# 9.1.0
+
+## Added
+
+- Allows processing all clipboard changes (#2787, #2746).
+  If clipboard contains secret (for example is copied from a password manager),
+  `onSecretClipboardChanged()` script function is called with data containing
+  `mimeSecret` format set to `1`. Also ensures that callbacks are called
+  consistently for all clipboard changes with properly set formats
+  `mimeClipboardMode`, `mimeOutputTab` and `mimeCurrentTab`.
+
+## Fixed
+
+- Fixes editing multiple items (#2810).
+
+- Fixes synchronization plugin causing redundant UI updates and menu
+  misbehavior (#2649).
+
+- Fixes showing sub-menus for custom commands in tray menu (#2730).
+
+- Fixes switching tab if `onItemsLoaded()` is overridden (#2788).
+
+- Fixes theme option `hover_item_css` (#2687).
+
+- Avoids modifying data from display commands and causing redundant UI updates
+  (#2837).
+
+- Avoids sharing execute() state in case it is launched recursively.
+
+# 9.0.0
+
+## Added
+
+- Adds `editItem()` script function for editing any item format (#2672).
+
+- Item color is now shown in tray menu as the default icon (#2700).
+
+## Changed
+
+- Removes large margins in the tab tree.
+
+- Single action "Toggle Tag …" replaces the two separate actions "Tag as …" and
+  "Remove tag …" for each custom tag (this can make the item context menu a lot
+  more compact).
+
+- Selected items can now be accessed even from commands started from outside
+  the app using global commands or from command line.
+
+- The `dialog()` script function can now be used for asking Yes/No questions
+  without providing any fields. In such case, the function will return `true`
+  instead of `undefined` after accepting the dialog. For example:
+
+      const remove = dialog(
+        '.title', 'Remove Items',
+        '.label', 'Do you really want to remove all items?'
+      );
+
+      if (!remove)
+          abort();
+
+      // remove items ...
+
+- The `execute()` script function now throws an exception when command cannot
+  be executed instead of returning `undefine`.
+
+## Fixed
+
+- Includes many performance improvements for working with large amount of items.
+
+- Fixes triggering menu items by number (#2569).
+
+- Fixes text color in the internal item editor (#2643).
+
+- Fixes showing global shortcuts in tray menu (#2382).
+
+- Fixes passing captured texts to automated commands (#2707).
+
+- Fixes duplicate synchronized items after tagging or modifying data.
+
+- Fixes situation when display commands stop updating items.
+
+- The pre-defined "Move to tab" action will be shown only if the current tab is
+  not the same as target tab (#2669). Previously, in such case the item was
+  removed unexpectedly.
+
+- Windows: Detect and ignore secrets from more apps (#2679).
+
+- Linux: Fixes storing previously synchronized clipboard (#2630).
+
+- Linux: Fixes storing selection when "Store text selected using mouse" option
+  is enabled but "Run automatic commands on selection" is disabled (#2651).
+
+- Linux: Fixes clipboard synchronization with Qt 6 GUI framework.
+
+- Linux: Fixes showing tab tree labels with Qt 6 GUI framework.
+
 # 8.0.0
 
 ## Added
@@ -1867,4 +2439,3 @@
 
 # v1.0.1
 - Compatibility with different platforms
-

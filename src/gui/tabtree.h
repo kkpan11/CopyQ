@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef TABTREE_H
-#define TABTREE_H
+#pragma once
+
 
 #include "gui/tabswidgetinterface.h"
 
@@ -43,6 +43,7 @@ public:
     void previousTab() override;
 
     void setCurrentTab(int index) override;
+    void moveTab(int from, int to) override;
 
     void adjustSize() override;
 
@@ -70,13 +71,14 @@ signals:
     void currentTabChanged(int index);
     void tabTreeMenuRequested(const QPoint &pos, const QString &groupPath);
     void tabsMoved(const QString &oldPrefix, const QString &newPrefix, const QList<int> &indexes);
-    void dropItems(const QString &tabName, const QMimeData *data);
+    void dropItems(const QString &tabName, const QMimeData *data, bool *accepted);
 
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dragMoveEvent(QDragMoveEvent *event) override;
     void dropEvent(QDropEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
     bool eventFilter(QObject *obj, QEvent *event) override;
     void rowsInserted(const QModelIndex &parent, int start, int end) override;
     void showEvent(QShowEvent *event) override;
@@ -89,8 +91,9 @@ private:
     void requestTabMenu(QPoint itemPosition, QPoint menuPosition);
     void deleteItem(QTreeWidgetItem *item);
 
+    void setTabItemCount(QTreeWidgetItem *item, const QString &itemCount);
+
     QTimer m_timerUpdate;
     QList<QTreeWidgetItem*> m_tabs;
+    QList<QString> m_collapsedPaths;
 };
-
-#endif // TABTREE_H

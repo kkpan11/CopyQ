@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef ITEMFACTORY_H
-#define ITEMFACTORY_H
+#pragma once
 
-#include "common/command.h"
+
+#include "common/encryption.h"
 #include "item/itemwidget.h"
 
 #include <QMap>
@@ -21,6 +21,13 @@ class QWidget;
 struct Command;
 struct CommandMenu;
 
+namespace Encryption {
+    class EncryptionKey;
+}
+
+struct ClipboardBrowserShared;
+using ClipboardBrowserSharedPtr = std::shared_ptr<ClipboardBrowserShared>;
+
 using ItemLoaderList = QList<ItemLoaderPtr>;
 
 /**
@@ -30,14 +37,14 @@ using ItemLoaderList = QList<ItemLoaderPtr>;
 class ItemFactory final : public QObject
 {
     Q_OBJECT
+    Q_PROPERTY(QStringList copyqStats READ copyqStats CONSTANT)
 
 public:
     /**
      * Loads item plugins.
      */
-    explicit ItemFactory(QObject *parent = nullptr);
-
-    ~ItemFactory();
+    explicit ItemFactory(
+        const ClipboardBrowserSharedPtr &sharedData = nullptr, QObject *parent = nullptr);
 
     /**
      * Instantiate ItemWidget using given @a loader if possible.
@@ -79,6 +86,8 @@ public:
      */
     bool hasLoaders() const { return !m_loaders.isEmpty(); }
 
+    QStringList copyqStats() const;
+
     /**
      * Load items using a plugin.
      * @return the first plugin (or nullptr) for which ItemLoaderInterface::loadItems() returned true
@@ -89,7 +98,7 @@ public:
      * Initialize tab.
      * @return the first plugin (or nullptr) for which ItemLoaderInterface::initializeTab() returned true
      */
-    ItemSaverPtr initializeTab(const QString &tabName, QAbstractItemModel *model, int maxItems);
+    ItemSaverPtr initializeTab(const QString &tabName, QAbstractItemModel *model, int maxItems) const;
 
     /**
      * Return true only if any plugin (ItemLoaderInterface::matches()) returns true;
@@ -132,9 +141,8 @@ private:
 
     bool loadItemFactorySettings(const ItemLoaderPtr &loader, QSettings *settings) const;
 
+    ClipboardBrowserSharedPtr m_sharedData;
     ItemLoaderList m_loaders;
     ItemLoaderPtr m_dummyLoader;
     QMap<QObject *, ItemLoaderPtr> m_loaderChildren;
 };
-
-#endif // ITEMFACTORY_H

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef ACTIONHANDLER_H
-#define ACTIONHANDLER_H
+#pragma once
+
 
 #include <QObject>
 #include <QSet>
+#include <QStringList>
 
 class Action;
 class NotificationDaemon;
@@ -13,12 +14,14 @@ class ActionTableModel;
 class ActionHandler final : public QObject
 {
     Q_OBJECT
+    Q_PROPERTY(QStringList copyqStats READ copyqStats CONSTANT)
 public:
     explicit ActionHandler(NotificationDaemon *notificationDaemon, QObject *parent);
 
     void setMaxRowCount(uint rows);
 
     int runningActionCount() const { return m_actions.size() - m_internalActions.size(); }
+    QStringList copyqStats() const;
 
     void showProcessManagerDialog(QWidget *parent);
 
@@ -34,6 +37,7 @@ public:
     void action(Action *action);
 
     void terminateAction(int id);
+    Action *findAction(int id) const;
 
 private:
     /** Delete finished action and its menu item. */
@@ -47,5 +51,3 @@ private:
     QSet<int> m_internalActions;
     int m_lastActionId = -1;
 };
-
-#endif // ACTIONHANDLER_H

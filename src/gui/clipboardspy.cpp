@@ -16,23 +16,20 @@ ClipboardSpy::ClipboardSpy(ClipboardMode mode, const QByteArray &owner)
     , m_clipboard(platformNativeInterface()->clipboard())
 {
     m_oldOwnerData = owner.isEmpty() ? currentOwnerData() : owner;
-    connect( m_clipboard.get(), &PlatformClipboard::changed, this,
-        [this](ClipboardMode changedMode) {
-            if (changedMode == m_mode)
-                check();
-        }
-    );
-    m_clipboard->startMonitoring( QStringList(mimeOwner) );
 }
 
 void ClipboardSpy::wait(int ms, int checkIntervalMs)
 {
+    if (m_stopped)
+        return;
+
     if (m_mode == ClipboardMode::Selection && !m_clipboard->isSelectionSupported())
         return;
 
     QEventLoop loop;
     connect( this, &ClipboardSpy::changed, &loop, &QEventLoop::quit );
     connect( this, &ClipboardSpy::stopped, &loop, &QEventLoop::quit );
+    connect( QCoreApplication::instance(), &QCoreApplication::aboutToQuit, &loop, &QEventLoop::quit );
 
     QTimer timerStop;
     if (ms >= 0) {
@@ -43,7 +40,7 @@ void ClipboardSpy::wait(int ms, int checkIntervalMs)
 
     QTimer timerCheck;
     timerCheck.setInterval(checkIntervalMs);
-    connect( &timerCheck, &QTimer::timeout, this, &ClipboardSpy::check );
+    connect( &timerCheck, &QTimer::timeout, this, &ClipboardSpy::emitChangeIfChanged );
     timerCheck.start();
 
     loop.exec();
@@ -51,10 +48,22 @@ void ClipboardSpy::wait(int ms, int checkIntervalMs)
 
 bool ClipboardSpy::setClipboardData(const QVariantMap &data)
 {
+    m_settingClipboard = true;
     m_oldOwnerData = currentOwnerData();
+
+    if (!m_connection) {
+        const auto mode = m_mode == ClipboardMode::Clipboard
+            ? ClipboardModeFlag::Clipboard
+            : ClipboardModeFlag::Selection;
+        m_connection = m_clipboard->createConnection(QStringList(mimeOwner), mode);
+        connect(m_connection.get(), &ClipboardConnection::changed,
+                this, &ClipboardSpy::emitChangeIfChanged, Qt::QueuedConnection);
+    }
+
     m_clipboard->setData(m_mode, data);
     wait();
     m_oldOwnerData = data.value(mimeOwner).toByteArray();
+    m_settingClipboard = false;
     return m_oldOwnerData == currentOwnerData();
 }
 
@@ -65,14 +74,20 @@ QByteArray ClipboardSpy::currentOwnerData() const
 
 void ClipboardSpy::stop()
 {
+    m_stopped = true;
+    m_connection.reset();
     emit stopped();
 }
 
-bool ClipboardSpy::check()
+void ClipboardSpy::emitChangeIfChanged()
 {
-    if (!m_oldOwnerData.isEmpty() && m_oldOwnerData == currentOwnerData())
-        return false;
+    if (m_stopped)
+        return;
 
-    emit changed();
-    return true;
+    const auto newOwner = currentOwnerData();
+    if (m_oldOwnerData != newOwner) {
+        emit changed();
+    } else if (!m_settingClipboard && m_oldOwnerData.isEmpty() && newOwner.isEmpty()) {
+        emit changed();
+    }
 }

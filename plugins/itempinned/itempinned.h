@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef ITEMPINNED_H
-#define ITEMPINNED_H
+#pragma once
+
 
 #include "gui/icons.h"
 #include "item/itemwidgetwrapper.h"
@@ -10,18 +10,33 @@
 #include <QPointer>
 #include <QVariant>
 #include <QWidget>
+#include <QColor>
 
 class ItemPinned final : public QWidget, public ItemWidgetWrapper
 {
     Q_OBJECT
+    Q_PROPERTY(QColor pinnedIndicatorColor READ pinnedIndicatorColor
+               WRITE setPinnedIndicatorColor)
+    Q_PROPERTY(int pinnedIndicatorWidth READ pinnedIndicatorWidth
+               WRITE setPinnedIndicatorWidth)
 
 public:
     explicit ItemPinned(ItemWidget *childItem);
+
+    QColor pinnedIndicatorColor() const { return m_indicatorColor; }
+    void setPinnedIndicatorColor(const QColor &color) { m_indicatorColor = color; }
+
+    int pinnedIndicatorWidth() const { return m_indicatorWidth; }
+    void setPinnedIndicatorWidth(int width) { m_indicatorWidth = width; }
 
 protected:
     void paintEvent(QPaintEvent *paintEvent) override;
 
     void updateSize(QSize maximumSize, int idealWidth) override;
+
+private:
+    QColor m_indicatorColor;
+    int m_indicatorWidth = 6;
 };
 
 class ItemPinnedScriptable final : public ItemScriptable
@@ -96,8 +111,6 @@ public:
 
     ItemSaverPtr transformSaver(const ItemSaverPtr &saver, QAbstractItemModel *model) override;
 
-    QObject *tests(const TestInterfacePtr &test) const override;
-
     const QObject *signaler() const override { return this; }
 
     ItemScriptable *scriptableObject() override;
@@ -107,5 +120,3 @@ public:
 private:
     ItemLoaderPtr m_transformedLoader;
 };
-
-#endif // ITEMPINNED_H

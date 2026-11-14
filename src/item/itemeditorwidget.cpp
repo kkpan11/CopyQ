@@ -43,7 +43,7 @@ QString findImageFormat(const QMimeData &data)
 
 QAction *addMenuItem(const MenuItem &menuItem, QToolBar *toolBar, ItemEditorWidget *parent)
 {
-    QAction *act = new QAction( getIcon(menuItem.iconName, menuItem.iconId), menuItem.text, parent );
+    auto *act = new QAction( getIcon(menuItem.iconName, menuItem.iconId), menuItem.text, parent );
     act->setShortcuts(menuItem.shortcuts);
     toolBar->addAction(act);
     return act;
@@ -51,11 +51,11 @@ QAction *addMenuItem(const MenuItem &menuItem, QToolBar *toolBar, ItemEditorWidg
 
 } // namespace
 
-ItemEditorWidget::ItemEditorWidget(const QModelIndex &index, bool editNotes, QWidget *parent)
+ItemEditorWidget::ItemEditorWidget(const QModelIndex &index, const QString &format, QWidget *parent)
     : QTextEdit(parent)
     , m_index(index)
     , m_saveOnReturnKey(false)
-    , m_editNotes(editNotes)
+    , m_format(format)
 {
     setFrameShape(QFrame::NoFrame);
     setFocusPolicy(Qt::StrongFocus);
@@ -84,12 +84,12 @@ void ItemEditorWidget::setSaveOnReturnKey(bool enabled)
 QVariantMap ItemEditorWidget::data() const
 {
     QVariantMap data;
-    if (m_editNotes) {
-        setTextData( &data, toPlainText(), mimeItemNotes );
-    } else {
+    if (m_format == mimeText) {
         setTextData( &data, toPlainText(), mimeText );
         if ( containsRichText(*document()) )
             setTextData( &data, toHtml(), mimeHtml );
+    } else {
+        setTextData( &data, toPlainText(), m_format );
     }
     return data;
 }
@@ -118,15 +118,14 @@ void ItemEditorWidget::findPrevious()
 
 void ItemEditorWidget::keyPressEvent(QKeyEvent *event)
 {
-    QKeyEvent *keyevent = static_cast<QKeyEvent *>(event);
-    int k = keyevent->key();
+    int k = event->key();
 
     if (k == Qt::Key_Return || k == Qt::Key_Enter) {
-        Qt::KeyboardModifiers mods = keyevent->modifiers();
+        Qt::KeyboardModifiers mods = event->modifiers();
         if ( (mods & (Qt::ShiftModifier | Qt::AltModifier | Qt::MetaModifier)) == 0 ) {
             bool controlPressed = mods.testFlag(Qt::ControlModifier);
             if (m_saveOnReturnKey && controlPressed ) {
-                keyevent->setModifiers(mods & ~Qt::ControlModifier);
+                event->setModifiers(mods & ~Qt::ControlModifier);
             } else if ( m_saveOnReturnKey || controlPressed ) {
                 saveAndExit();
                 return;
@@ -174,6 +173,7 @@ void ItemEditorWidget::changeSelectionFont()
         const QFont font = dialog.selectedFont();
         format.setFont(font);
         tc.setCharFormat(format);
+        setTextCursor(tc);
     }
 }
 
@@ -184,6 +184,7 @@ void ItemEditorWidget::toggleBoldText()
     const int weight = format.fontWeight() == QFont::Bold ? QFont::Normal : QFont::Bold;
     format.setFontWeight(weight);
     tc.setCharFormat(format);
+    setTextCursor(tc);
 }
 
 void ItemEditorWidget::toggleItalicText()
@@ -192,6 +193,7 @@ void ItemEditorWidget::toggleItalicText()
     QTextCharFormat format = tc.charFormat();
     format.setFontItalic( !format.fontItalic() );
     tc.setCharFormat(format);
+    setTextCursor(tc);
 }
 
 void ItemEditorWidget::toggleUnderlineText()
@@ -200,6 +202,7 @@ void ItemEditorWidget::toggleUnderlineText()
     QTextCharFormat format = tc.charFormat();
     format.setFontUnderline( !format.fontUnderline() );
     tc.setCharFormat(format);
+    setTextCursor(tc);
 }
 
 void ItemEditorWidget::toggleStrikethroughText()
@@ -208,6 +211,7 @@ void ItemEditorWidget::toggleStrikethroughText()
     QTextCharFormat format = tc.charFormat();
     format.setFontStrikeOut( !format.fontStrikeOut() );
     tc.setCharFormat(format);
+    setTextCursor(tc);
 }
 
 void ItemEditorWidget::setForeground()
@@ -223,6 +227,7 @@ void ItemEditorWidget::setForeground()
         const QColor color = dialog.selectedColor();
         format.setForeground(color);
         tc.setCharFormat(format);
+        setTextCursor(tc);
     }
 }
 
@@ -239,12 +244,15 @@ void ItemEditorWidget::setBackground()
         const QColor color = dialog.selectedColor();
         format.setBackground(color);
         tc.setCharFormat(format);
+        setTextCursor(tc);
     }
 }
 
 void ItemEditorWidget::eraseStyle()
 {
-    textCursor().setCharFormat( QTextCharFormat() );
+    QTextCursor tc = textCursor();
+    tc.setCharFormat( QTextCharFormat() );
+    setTextCursor(tc);
 }
 
 QWidget *ItemEditorWidget::createToolbar(QWidget *parent, const MenuItems &menuItems)

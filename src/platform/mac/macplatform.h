@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef MACPLATFORM_H
-#define MACPLATFORM_H
+#pragma once
+
 
 #include "platform/platformnativeinterface.h"
 
@@ -20,12 +20,12 @@ public:
     bool canAutostart() override { return true; }
     bool isAutostartEnabled() override;
     void setAutostartEnabled(bool) override;
+    bool setPreventScreenCapture(WId, bool) override { return false; }
+    bool canPreventScreenCapture() override { return false; }
 
     QCoreApplication *createConsoleApplication(int &argc, char **argv) override;
 
     QApplication *createServerApplication(int &argc, char **argv) override;
-
-    QGuiApplication *createMonitorApplication(int &argc, char **argv) override;
 
     QGuiApplication *createClipboardProviderApplication(int &argc, char **argv) override;
 
@@ -44,6 +44,6 @@ public:
     QString translationPrefix() override;
 
     QString themePrefix() override;
-};
 
-#endif // MACPLATFORM_H
+    qint64 processResidentMemoryBytes(qint64 pid) override;
+};

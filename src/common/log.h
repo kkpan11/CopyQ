@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#pragma once
 
-#ifndef LOG_H
-#define LOG_H
 
 class QByteArray;
+class QFileInfo;
 class QString;
+template <class T> class QList;
+using QFileInfoList = QList<QFileInfo>;
 
 enum LogLevel {
     LogAlways,
@@ -15,15 +17,20 @@ enum LogLevel {
     LogTrace
 };
 
-void initLogging();
+constexpr int logFileSize = 512 * 1024;
+constexpr int logFileCount = 10;
 
+QString getDefaultLogFilePath();
 const QString &logFileName();
+QFileInfoList logFileNames();
 
 QByteArray readLogFile(int maxReadSize);
 
-bool removeLogFiles();
+bool dropLogsToFileCountAndSize(int maxFileCount, int keepMaxSize);
 
 void createSessionMutex();
+
+int getLogLevel();
 
 bool hasLogLevel(LogLevel level);
 
@@ -39,8 +46,3 @@ void log(const QByteArray &text, LogLevel level = LogNote);
 void setLogLabel(const QByteArray &name);
 
 QByteArray &logLabel();
-
-/// True if stdout and stderr can be used.
-bool canUseStandardOutput();
-
-#endif // LOG_H

@@ -6,6 +6,7 @@
 
 #include <QLocale>
 #include <QString>
+#include <QVariantMap>
 
 #include <algorithm>
 #include <iterator>
@@ -23,9 +24,10 @@ QString escapeHtmlSpaces(const QString &str)
 
 bool isPluginFormat(const QString &mime)
 {
-    return mime.startsWith(mimePluginPrefix)
+    return mime.startsWith(mimePrivatePrefix) || (
+        mime.startsWith(mimePluginPrefix)
         && mime.size() > mimePluginPrefix.size()
-        && mime[mimePluginPrefix.size()] != '-';
+    );
 }
 
 } // namespace
@@ -33,7 +35,11 @@ bool isPluginFormat(const QString &mime)
 uint hash(const QVariantMap &data)
 {
     uint seed = 0;
+#if QT_VERSION >= QT_VERSION_CHECK(6,10,0)
+    QtPrivate::QHashCombine hash(seed);
+#else
     QtPrivate::QHashCombine hash;
+#endif
 
     for (auto it = data.constBegin(); it != data.constEnd(); ++it) {
         const auto &mime = it.key();
@@ -46,7 +52,12 @@ uint hash(const QVariantMap &data)
             continue;
 
         seed = hash(seed, mime);
-        seed = hash(seed, data[mime].toByteArray());
+
+        const auto &value = it.value();
+        if ( value.typeId() == QMetaType::QByteArray )
+            seed = hash(seed, value.toByteArray());
+        else
+            seed = hash(seed, value.toString());
     }
 
     return seed;
@@ -70,6 +81,9 @@ QString getTextData(const QByteArray &bytes)
 
 QString getTextData(const QVariantMap &data, const QString &mime)
 {
+    if (mime.isEmpty())
+        return getTextData(data);
+
     const auto it = data.find(mime);
     if ( it != data.constEnd() )
         return getTextData( it->toByteArray() );

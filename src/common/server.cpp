@@ -25,7 +25,7 @@ bool serverIsRunning(const QString &serverName)
 
 QString lockFilePath()
 {
-    const QString lockFilePath = getConfigurationFilePath(".lock");
+    const QString lockFilePath = configurationFilePath(".lock");
 
     // Ensure parent dir exists.
     const QString path = QDir::cleanPath( lockFilePath + QLatin1String("/..") );
@@ -39,7 +39,7 @@ QString lockFilePath()
 
 struct Server::PrivateData {
     QLocalServer server;
-    QLockFile lockFile = lockFilePath();
+    QLockFile lockFile{lockFilePath()};
     int socketCount = 0;
     QEventLoop *loop = nullptr;
 };
@@ -52,7 +52,7 @@ Server::Server(const QString &name, QObject *parent)
         QLocalServer::removeServer(name);
         if ( !m_data->server.listen(name) ) {
             log( QStringLiteral("Failed to create server \"%1\": %2")
-                 .arg(m_data->server.fullServerName(), m_data->server.errorString()),
+                 .arg(name, m_data->server.errorString()),
                  LogError);
         }
     } else if (m_data->lockFile.error() == QLockFile::LockFailedError) {

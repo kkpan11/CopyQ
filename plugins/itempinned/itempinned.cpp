@@ -5,16 +5,12 @@
 #include "common/command.h"
 #include "common/contenttype.h"
 #include "common/display.h"
-
-#ifdef HAS_TESTS
-#   include "tests/itempinnedtests.h"
-#endif
+#include "gui/fromiconid.h"
 
 #include <QApplication>
 #include <QBoxLayout>
 #include <QMessageBox>
 #include <QModelIndex>
-#include <QPalette>
 #include <QPainter>
 
 #include <algorithm>
@@ -32,7 +28,7 @@ bool isPinned(const QModelIndex &index)
 Command dummyPinCommand()
 {
     Command c;
-    c.icon = QString(QChar(IconThumbtack));
+    c.icon = fromIconId(IconThumbtack);
     c.inMenu = true;
     return c;
 }
@@ -60,30 +56,25 @@ ItemPinned::ItemPinned(ItemWidget *childItem)
 
 void ItemPinned::paintEvent(QPaintEvent *paintEvent)
 {
-    const auto *parent = parentWidget();
-    auto color = parent->palette().color(QPalette::Window);
-    const int lightThreshold = 100;
-    const bool menuBackgrounIsLight = color.lightness() > lightThreshold;
-    color.setHsl(
-                color.hue(),
-                color.saturation(),
-                qMax(0, qMin(255, color.lightness() + (menuBackgrounIsLight ? -200 : 200)))
-                );
+    QWidget::paintEvent(paintEvent);
 
     QPainter painter(this);
-    const int border = pointsToPixels(6, this);
-    const QRect rect(width() - border, 0, width(), height());
-    painter.setOpacity(0.15);
-    painter.fillRect(rect, color);
-
-    QWidget::paintEvent(paintEvent);
+    QColor color;
+    if (m_indicatorColor.isValid()) {
+        color = m_indicatorColor;
+    } else {
+        color = painter.pen().color();
+        color.setAlpha(50);
+    }
+    const int border = pointsToPixels(m_indicatorWidth, this);
+    painter.fillRect(width() - border, 0, border, height(), color);
 }
 
 void ItemPinned::updateSize(QSize maximumSize, int idealWidth)
 {
     setMinimumWidth(idealWidth);
     setMaximumWidth(maximumSize.width());
-    const int border = pointsToPixels(12, this);
+    const int border = pointsToPixels(2 * m_indicatorWidth, this);
     const int childItemWidth = idealWidth - border;
     const auto childItemMaximumSize = QSize(maximumSize.width() - border, maximumSize.height());
     ItemWidgetWrapper::updateSize(childItemMaximumSize, childItemWidth);
@@ -97,7 +88,7 @@ bool ItemPinnedScriptable::isPinned()
         bool ok;
         const int row = arg.toInt(&ok);
         if (ok) {
-            const auto result = call("read", QVariantList() << "?" << row);
+            const auto result = call("read", {QStringLiteral("?"), row});
             if ( result.toByteArray().contains(mimePinned.data()) )
                 return true;
         }
@@ -116,7 +107,7 @@ void ItemPinnedScriptable::pin()
             bool ok;
             const int row = arg.toInt(&ok);
             if (ok)
-                call("change", QVariantList() << row << mimePinned << QString());
+                call("change", {row, mimePinned, QString()});
         }
     }
 }
@@ -131,19 +122,19 @@ void ItemPinnedScriptable::unpin()
             bool ok;
             const int row = arg.toInt(&ok);
             if (ok)
-                call("change", QVariantList() << row << mimePinned << QVariant());
+                call("change", {row, mimePinned, QVariant()});
         }
     }
 }
 
 void ItemPinnedScriptable::pinData()
 {
-    call("setData", QVariantList() << mimePinned << QString());
+    call("setData", {mimePinned, QString()});
 }
 
 void ItemPinnedScriptable::unpinData()
 {
-    call("removeData", QVariantList() << mimePinned);
+    call("removeData", {mimePinned});
 }
 
 QString ItemPinnedScriptable::getMimePinned() const
@@ -299,9 +290,7 @@ void ItemPinnedSaver::updateLastPinned(int from, int to)
     }
 }
 
-ItemPinnedLoader::ItemPinnedLoader()
-{
-}
+ItemPinnedLoader::ItemPinnedLoader() = default;
 
 ItemPinnedLoader::~ItemPinnedLoader() = default;
 
@@ -318,17 +307,6 @@ ItemWidget *ItemPinnedLoader::transform(ItemWidget *itemWidget, const QVariantMa
 ItemSaverPtr ItemPinnedLoader::transformSaver(const ItemSaverPtr &saver, QAbstractItemModel *model)
 {
     return std::make_shared<ItemPinnedSaver>(model, saver);
-}
-
-QObject *ItemPinnedLoader::tests(const TestInterfacePtr &test) const
-{
-#ifdef HAS_TESTS
-    QObject *tests = new ItemPinnedTests(test);
-    return tests;
-#else
-    Q_UNUSED(test)
-    return nullptr;
-#endif
 }
 
 ItemScriptable *ItemPinnedLoader::scriptableObject()

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-#ifndef MENUITEMS_H
-#define MENUITEMS_H
+#pragma once
+
 
 #include <QList>
 #include <QKeySequence>
@@ -67,6 +67,8 @@ enum Id {
     Help_ShowLog,
     Help_About,
 
+    Misc_ShowMenuBar,
+
     ItemMenu,
 
     Count
@@ -81,6 +83,13 @@ struct MenuItem {
     QString settingsKey;
     QKeySequence defaultShortcut;
     QList<QKeySequence> shortcuts;
+
+    MenuItem() = default;
+    ~MenuItem() = default;
+    MenuItem(const MenuItem &) = default;
+    MenuItem &operator=(const MenuItem &) = default;
+    MenuItem(MenuItem &&) noexcept = default;
+    MenuItem &operator=(MenuItem &&) noexcept = default;
 };
 
 using MenuItems = std::array<MenuItem, Actions::Count>;
@@ -88,5 +97,3 @@ using MenuItems = std::array<MenuItem, Actions::Count>;
 MenuItems menuItems();
 
 void loadShortcuts(MenuItems *items, const QSettings &settings);
-
-#endif // MENUITEMS_H

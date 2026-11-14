@@ -1,29 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef COMMON_H
-#define COMMON_H
+#pragma once
 
-#include <QtGlobal> // Q_WS_*
-#include <QStringList>
-#include <QVariantMap>
 
+#include <QtContainerFwd>
+
+class ClipboardDataGuard;
 class QByteArray;
 class QDropEvent;
 class QFont;
-class QKeyEvent;
 class QMimeData;
 class QProcess;
 class QString;
 
-bool isMainThread();
-
 QByteArray makeClipboardOwnerData();
 
 /** Clone data for given formats (text or HTML will be UTF8 encoded). */
-QVariantMap cloneData(const QMimeData &data, QStringList formats, bool *abortCloning = nullptr);
+QVariantMap cloneData(ClipboardDataGuard &data, const QStringList &formats);
+QVariantMap cloneData(const QMimeData *data, const QStringList &formats, const long int *clipboardSequenceNumber = nullptr);
 
 /** Clone all data as is. */
-QVariantMap cloneData(const QMimeData &data);
+QVariantMap cloneData(const QMimeData *data);
 
 QString cloneText(const QMimeData &data);
 
@@ -69,14 +66,9 @@ QString textLabelForData(const QVariantMap &data);
 
 void renameToUnique(QString *name, const QStringList &names);
 
-QString dataToText(const QByteArray &bytes, const QString &mime = QString());
+QString dataToText(const QByteArray &bytes, const QString &mime);
 
 bool isClipboardData(const QVariantMap &data);
-
-/**
- * Handle key for Vi mode.
- */
-bool handleViKey(QKeyEvent *event, QObject *eventReceiver);
 
 /**
  * Return true only if tabs can accept the drag'n'drop event.
@@ -88,4 +80,4 @@ bool canDropToTab(const QDropEvent &event);
  */
 void acceptDrag(QDropEvent *event);
 
-#endif // COMMON_H
+QString formatDataSize(qint64 bytes);

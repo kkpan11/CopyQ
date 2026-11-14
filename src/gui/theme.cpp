@@ -17,9 +17,16 @@
 #include <QSettings>
 #include <QStyleFactory>
 
+#if QT_VERSION >= QT_VERSION_CHECK(6,8,0)
+#   include <QStyleHints>
+#endif
+
 #include <cmath>
 
 namespace {
+
+/// Up to this value of background lightness, window title style would be light.
+const int lightThreshold = 100;
 
 const QLatin1String defaultColorVarBase("default_bg");
 const QLatin1String defaultColorVarText("default_text");
@@ -47,11 +54,7 @@ QPalette::ColorRole defaultColorVarToRole(const QString &varName)
     static QHash<QString, QPalette::ColorRole> map = {
         {defaultColorVarBase, QPalette::Base},
         {defaultColorVarText, QPalette::Text},
-#if QT_VERSION >= QT_VERSION_CHECK(5,12,0)
         {defaultColorVarPlaceholderText, QPalette::PlaceholderText},
-#else
-        {defaultColorVarPlaceholderText, QPalette::AlternateBase},
-#endif
         {defaultColorVarAlternateBase, QPalette::AlternateBase},
         {defaultColorVarHighlight, QPalette::Highlight},
         {defaultColorVarHighlightText, QPalette::HighlightedText},
@@ -117,6 +120,8 @@ void addColor(
     } else if ( color.startsWith(QStringLiteral("default_")) ) {
         const QPalette::ColorRole role = defaultColorVarToRole(color);
         toAdd = QPalette().color(role);
+    } else if (QColor col(color); col.isValid()) {
+        toAdd = col;
     } else if (maxRecursion > 0) {
         const QVariant v = values.contains(color)
                 ? values.value(color) : theme.value(color);
@@ -206,7 +211,7 @@ QString getFontStyleSheet(const QString &fontString, double scale = 1.0)
 QString themePrefix()
 {
 #ifdef COPYQ_THEME_PREFIX
-    return COPYQ_THEME_PREFIX;
+    return adjustedInstallPath(QStringLiteral(COPYQ_THEME_PREFIX));
 #else
     return platformNativeInterface()->themePrefix();
 #endif
@@ -291,13 +296,25 @@ void Theme::decorateMainWindow(QWidget *mainWindow) const
     mainWindow->setStyleSheet(QString());
     mainWindow->setPalette(palette);
 
+    const auto bg = color("bg");
+
+#if QT_VERSION >= QT_VERSION_CHECK(6,8,0)
+    // Change window dark/light title scheme if supported.
+    QStyleHints *styleHints = QGuiApplication::styleHints();
+    if ( !isMainWindowThemeEnabled() )
+        styleHints->unsetColorScheme();
+    else if (bg.lightness() < lightThreshold)
+        styleHints->setColorScheme(Qt::ColorScheme::Dark);
+    else
+        styleHints->setColorScheme(Qt::ColorScheme::Light);
+#endif
+
     if ( !isMainWindowThemeEnabled() ) {
         const QString cssTemplate = QStringLiteral("main_window_simple");
         mainWindow->setStyleSheet(getStyleSheet(cssTemplate));
         return;
     }
 
-    const auto bg = color("bg");
     const auto fg = color("fg");
     palette.setColor( QPalette::Base, bg );
     palette.setColor( QPalette::AlternateBase, color("alt_bg") );
@@ -375,8 +392,8 @@ void Theme::resetTheme()
     m_theme["alt_bg"]    = Option(defaultColorVarAlternateBase, "VALUE", ui ? ui->pushButtonColorAltBg : nullptr);
     m_theme["sel_bg"]    = Option(defaultColorVarHighlight, "VALUE", ui ? ui->pushButtonColorSelBg : nullptr);
     m_theme["sel_fg"]    = Option(defaultColorVarHighlightText, "VALUE", ui ? ui->pushButtonColorSelFg : nullptr);
-    m_theme["find_bg"]   = Option("#ff0", "VALUE", ui ? ui->pushButtonColorFoundBg : nullptr);
-    m_theme["find_fg"]   = Option("#000", "VALUE", ui ? ui->pushButtonColorFoundFg : nullptr);
+    m_theme["find_bg"]   = Option("yellow", "VALUE", ui ? ui->pushButtonColorFoundBg : nullptr);
+    m_theme["find_fg"]   = Option("black", "VALUE", ui ? ui->pushButtonColorFoundFg : nullptr);
     m_theme["notes_bg"]  = Option(defaultColorVarToolTipBase, "VALUE", ui ? ui->pushButtonColorNotesBg : nullptr);
     m_theme["notes_fg"]  = Option(defaultColorVarToolTipText, "VALUE", ui ? ui->pushButtonColorNotesFg : nullptr);
     m_theme["notification_bg"]  = Option("#333", "VALUE", ui ? ui->pushButtonColorNotificationBg : nullptr);
@@ -507,6 +524,7 @@ void Theme::resetTheme()
     m_theme["css_template_menu"] = Option("menu");
 
     m_theme["num_margin"] = Option(2);
+    m_theme["num_sel_fg"] = Option(QString());
 }
 
 void Theme::updateTheme()
@@ -526,6 +544,10 @@ void Theme::updateTheme()
     // number style
     m_showRowNumber = value("show_number").toBool();
     m_rowNumberPalette.setColor(QPalette::Text, color("num_fg"));
+    const QString numSelFgValue = value("num_sel_fg").toString();
+    const QColor numSelFg =
+        numSelFgValue.isEmpty() ? color("sel_fg") : evalColor(numSelFgValue, *this);
+    m_rowNumberPalette.setColor(QPalette::HighlightedText, numSelFg);
     m_rowNumberFont = font("num_font");
     m_rowNumberFontMetrics = QFontMetrics(m_rowNumberFont);
     const QVariant rowNumberMargin = value("num_margin");
@@ -539,7 +561,7 @@ QSize Theme::rowNumberSize(int n) const
     if (!m_showRowNumber)
         return QSize(0, 0);
 
-    const QString number = QString::number(n + m_rowIndexFromOne);
+    const auto number = QString::number(n + m_rowIndexFromOne);
     return m_rowNumberFontMetrics.boundingRect(number).size()
         + m_margins + QSize(m_rowNumberMargin, 0);
 }
@@ -575,7 +597,7 @@ QString Theme::getStyleSheet(const QString &name, Values values, int maxRecursio
         return QString();
     }
 
-    const QString css = QString::fromUtf8( file.readAll() );
+    const auto css = QString::fromUtf8( file.readAll() );
     return parseStyleSheet(css, values, maxRecursion - 1);
 }
 
@@ -733,9 +755,9 @@ QStringList themePaths()
 {
     QStringList paths;
 
-    const QByteArray customThemsPath = qgetenv("COPYQ_THEME_PREFIX");
+    const QString customThemsPath = qEnvironmentVariable("COPYQ_THEME_PREFIX");
     if ( !customThemsPath.isEmpty() )
-        paths.append(QString::fromLocal8Bit(customThemsPath));
+        paths.append(customThemsPath);
 
     const QString userThemesPath = defaultUserThemePath();
     QDir themesDir(userThemesPath);

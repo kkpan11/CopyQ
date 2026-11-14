@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef FOREGROUNDBACKGROUNDFILTER_H
-#define FOREGROUNDBACKGROUNDFILTER_H
+#pragma once
+
 
 #include <QObject>
 
@@ -23,8 +23,6 @@ public:
     static void installFilter(QObject *parent);
 
 protected:
-    bool eventFilter(QObject *obj, QEvent *ev);
-    ForegroundBackgroundFilter(QObject *parent);
+    bool eventFilter(QObject *obj, QEvent *ev) override;
+    explicit ForegroundBackgroundFilter(QObject *parent);
 };
-
-#endif // FOREGROUNDBACKGROUNDFILTER_H

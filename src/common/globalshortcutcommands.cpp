@@ -3,6 +3,7 @@
 #include "globalshortcutcommands.h"
 
 #include "common/command.h"
+#include "gui/fromiconid.h"
 
 #include <QCoreApplication>
 #include <QLocale>
@@ -21,7 +22,7 @@ copy('image/png', imageData)
 )";
 
 constexpr auto commandPasteDateTimeTemplate = R"(
-// http://doc.qt.io/qt-5/qdatetime.html#toString
+// http://doc.qt.io/qt-6/qdatetime.html#toString
 var format = '%1'
 var dateTime = dateString(format)
 copy(dateTime)
@@ -50,7 +51,7 @@ Command createGlobalShortcut(const QString &name, const QString &script, IconId 
     c.internalId = internalId;
     c.name = name;
     c.cmd = "copyq: " + script;
-    c.icon = QString(QChar(icon));
+    c.icon = fromIconId(icon);
     c.isGlobalShortcut = true;
     return c;
 }
@@ -62,7 +63,7 @@ QVector<Command> globalShortcutCommands()
     return {
         createGlobalShortcut( AddCommandDialog::tr("Show/hide main window"), "toggle()", IconRectangleList, "copyq_global_toggle"),
         createGlobalShortcut( AddCommandDialog::tr("Show the tray menu"), "menu()", IconInbox, "copyq_global_menu"),
-        createGlobalShortcut( AddCommandDialog::tr("Show main window under mouse cursor"), "showAt()", IconRectangleList, "copyq_global_show_under_mouse"),
+        createGlobalShortcut( AddCommandDialog::tr("Show main window under mouse cursor"), "visible() ? hide() : showAt()", IconRectangleList, "copyq_global_show_under_mouse"),
         createGlobalShortcut( AddCommandDialog::tr("Edit clipboard"), "edit(-1)", IconPenToSquare, "copyq_global_edit_clipboard"),
         createGlobalShortcut( AddCommandDialog::tr("Edit first item"), "edit(0)", IconPenToSquare, "copyq_global_edit_first_item"),
         createGlobalShortcut( AddCommandDialog::tr("Copy second item"), "select(1)", IconCopy, "copyq_global_copy_second_item"),

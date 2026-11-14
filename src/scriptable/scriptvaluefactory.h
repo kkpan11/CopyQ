@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#pragma once
 
 #include "common/command.h"
 #include "scriptable/scriptablebytearray.h"
@@ -96,12 +97,6 @@ struct ScriptValueListFactory {
 template <typename T>
 struct ScriptValueFactory< QList<T> > : ScriptValueListFactory< QList<T>, T > {};
 
-// QVector is alias for a QList in Qt 6.
-#if QT_VERSION < QT_VERSION_CHECK(6,0,0)
-template <typename T>
-struct ScriptValueFactory< QVector<T> > : ScriptValueListFactory< QVector<T>, T > {};
-#endif
-
 template <>
 struct ScriptValueFactory<QVariantMap> {
     static QJSValue toScriptValue(const QVariantMap &dataMap, QJSEngine *engine)
@@ -121,7 +116,7 @@ struct ScriptValueFactory<QVariantMap> {
         while ( it.hasNext() ) {
             it.next();
             auto itemValue = ::fromScriptValue<QVariant>( it.value(), engine );
-            if (itemValue.type() == QVariant::String)
+            if (itemValue.typeId() == QMetaType::QString)
                 itemValue = itemValue.toString().toUtf8();
             result.insert(it.name(), itemValue);
         }
@@ -136,21 +131,6 @@ struct ScriptValueFactory<QByteArray> {
         return newByteArray(new ScriptableByteArray(bytes), engine);
     }
 };
-
-#if QT_VERSION < QT_VERSION_CHECK(6,0,0)
-template <>
-struct ScriptValueFactory<QStringList> {
-    static QJSValue toScriptValue(const QStringList &list, QJSEngine *engine)
-    {
-        return ScriptValueFactory< QList<QString> >::toScriptValue(list, engine);
-    }
-
-    static QStringList fromScriptValue(const QJSValue &value, QJSEngine *engine)
-    {
-        return ScriptValueFactory< QList<QString> >::fromScriptValue(value, engine);
-    }
-};
-#endif
 
 template <>
 struct ScriptValueFactory<QString> {
@@ -169,41 +149,17 @@ template <>
 struct ScriptValueFactory<QRegularExpression> {
     static QJSValue toScriptValue(const QRegularExpression &re, QJSEngine *engine)
     {
-#if QT_VERSION >= QT_VERSION_CHECK(5,13,0)
         return engine->toScriptValue(re);
-#else
-        const auto caseSensitivity =
-            re.patternOptions().testFlag(QRegularExpression::CaseInsensitiveOption)
-            ? Qt::CaseInsensitive
-            : Qt::CaseSensitive;
-        const QRegExp re2(re.pattern(), caseSensitivity);
-        return engine->toScriptValue(re2);
-#endif
     }
 
     static QRegularExpression fromScriptValue(const QJSValue &value, QJSEngine *)
     {
         if (value.isRegExp()) {
-            const auto variant = value.toVariant();
-#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
-            return variant.toRegularExpression();
-#else
-            // Support for Qt 5.12.z and below.
-            if ( variant.canConvert<QRegularExpression>() )
-                return variant.toRegularExpression();
-
-            const QRegExp reOld = variant.toRegExp();
-            const auto caseSensitivity =
-                reOld.caseSensitivity() == Qt::CaseInsensitive
-                ? QRegularExpression::CaseInsensitiveOption
-                : QRegularExpression::NoPatternOption;
-            return QRegularExpression(reOld.pattern(), caseSensitivity);
-#endif
+            return value.toVariant().toRegularExpression();
         }
 
         if (value.isVariant()) {
-            const auto variant = value.toVariant();
-            return variant.toRegularExpression();
+            return value.toVariant().toRegularExpression();
         }
 
         return QRegularExpression( toString(value) );
@@ -241,6 +197,11 @@ struct ScriptValueFactory<Command> {
         value.setProperty(QStringLiteral("outputTab"), command.outputTab);
         value.setProperty(QStringLiteral("internalId"), command.internalId);
 
+        QVariantMap nameLocalization;
+        for (auto it = command.nameLocalization.constBegin(); it != command.nameLocalization.constEnd(); ++it)
+            nameLocalization[it.key()] = it.value();
+        value.setProperty(QStringLiteral("nameLocalization"), ::toScriptValue(nameLocalization, engine));
+
         return value;
     }
 
@@ -273,6 +234,13 @@ struct ScriptValueFactory<Command> {
         ::fromScriptValueIfValid( value.property("outputTab"), engine, &command.outputTab );
         ::fromScriptValueIfValid( value.property("internalId"), engine, &command.internalId );
 
+        QJSValue nameLocalization = value.property("nameLocalization");
+        QJSValueIterator it(nameLocalization);
+        while (it.hasNext()) {
+            it.next();
+            command.nameLocalization[it.name()] = it.value().toString();
+        }
+
         return command;
     }
 };
@@ -284,19 +252,19 @@ struct ScriptValueFactory<QVariant> {
         if ( !variant.isValid() )
             return QJSValue(QJSValue::UndefinedValue);
 
-        if (variant.type() == QVariant::Bool)
+        if (variant.typeId() == QMetaType::Bool)
             return ::toScriptValue(variant.toBool(), engine);
 
-        if (variant.type() == QVariant::ByteArray)
+        if (variant.typeId() == QMetaType::QByteArray)
             return ::toScriptValue(variant.toByteArray(), engine);
 
-        if (variant.type() == QVariant::String)
+        if (variant.typeId() == QMetaType::QString)
             return ::toScriptValue(variant.toString(), engine);
 
-        if (variant.type() == QVariant::Char)
+        if (variant.typeId() == QMetaType::QChar)
             return ::toScriptValue(variant.toString(), engine);
 
-        if (variant.type() == QVariant::RegularExpression)
+        if (variant.typeId() == QMetaType::QRegularExpression)
             return ::toScriptValue(variant.toRegularExpression(), engine);
 
         if (variant.canConvert<QVariantList>())
@@ -324,11 +292,14 @@ struct ScriptValueFactory<QVariant> {
             return QVariant::fromValue( QUrl::fromLocalFile(path) );
         }
 
+        if (value.isCallable())
+            return {};
+
         if (value.isArray())
             return ScriptValueFactory<QVariantList>::fromScriptValue(value, engine);
 
         const auto variant = toVariant(value);
-        if (variant.type() == QVariant::ByteArray)
+        if (variant.typeId() == QMetaType::QByteArray)
             return variant;
 
         if (value.isObject())
@@ -338,4 +309,3 @@ struct ScriptValueFactory<QVariant> {
         return variant;
     }
 };
-

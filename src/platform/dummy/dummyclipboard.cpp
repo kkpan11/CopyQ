@@ -23,21 +23,40 @@ QClipboard::Mode modeToQClipboardMode(ClipboardMode mode)
     return QClipboard::Clipboard;
 }
 
-void DummyClipboard::startMonitoring(const QStringList &)
+void DummyClipboard::startMonitoringBackend(const QStringList &, ClipboardModeMask)
 {
     connect(QGuiApplication::clipboard(), &QClipboard::changed,
             this, &DummyClipboard::onClipboardChanged);
 }
 
+void DummyClipboard::stopMonitoringBackend()
+{
+    disconnect(QGuiApplication::clipboard(), &QClipboard::changed,
+               this, &DummyClipboard::onClipboardChanged);
+}
+
 QVariantMap DummyClipboard::data(ClipboardMode mode, const QStringList &formats) const
 {
     const QMimeData *data = mimeData(mode);
-    return data ? cloneData(*data, formats) : QVariantMap();
+    if (data == nullptr)
+        return {};
+
+    const bool isDataSecret = isHidden(*data);
+    QVariantMap dataMap = cloneData(data, formats, clipboardSequenceNumber(mode));
+    if (isDataSecret)
+        dataMap[mimeSecret] = QByteArrayLiteral("1");
+
+    return dataMap;
 }
 
 void DummyClipboard::setData(ClipboardMode mode, const QVariantMap &dataMap)
 {
     QGuiApplication::clipboard()->setMimeData( createMimeData(dataMap), modeToQClipboardMode(mode) );
+}
+
+void DummyClipboard::setRawData(ClipboardMode mode, QMimeData *mimeData)
+{
+    QGuiApplication::clipboard()->setMimeData( mimeData, modeToQClipboardMode(mode) );
 }
 
 const QMimeData *DummyClipboard::rawMimeData(ClipboardMode mode) const
@@ -57,11 +76,6 @@ const QMimeData *DummyClipboard::mimeData(ClipboardMode mode) const
         return nullptr;
     }
 
-    if (isHidden(*data)) {
-        log( QStringLiteral("Hiding secret %1 data").arg(modeText) );
-        return nullptr;
-    }
-
     COPYQ_LOG_VERBOSE( QStringLiteral("Got %1 data").arg(modeText) );
     return data;
 }
@@ -75,7 +89,9 @@ bool DummyClipboard::isHidden(const QMimeData &data) const
 void DummyClipboard::onChanged(int mode)
 {
     if (mode == QClipboard::Clipboard)
-        emit changed(ClipboardMode::Clipboard);
+        emitConnectionChanged(ClipboardMode::Clipboard);
+    else if (mode == QClipboard::Selection)
+        emitConnectionChanged(ClipboardMode::Selection);
 }
 
 void DummyClipboard::onClipboardChanged(QClipboard::Mode mode)

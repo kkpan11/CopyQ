@@ -3,15 +3,16 @@
 #include "windowgeometryguard.h"
 
 #include "common/appconfig.h"
-#include "common/config.h"
-#include "common/log.h"
 #include "common/timer.h"
+#include "gui/geometry.h"
 #include "gui/screen.h"
 #include "platform/platformnativeinterface.h"
 #include "platform/platformwindow.h"
 
 #include <QApplication>
+#include <QDebug>
 #include <QEvent>
+#include <QLoggingCategory>
 #include <QMoveEvent>
 #include <QScreen>
 #include <QVariant>
@@ -19,6 +20,9 @@
 #include <QWindow>
 
 namespace {
+
+Q_DECLARE_LOGGING_CATEGORY(geometryGuardCategory)
+Q_LOGGING_CATEGORY(geometryGuardCategory, "copyq.geometryguard")
 
 bool openOnCurrentScreen()
 {
@@ -56,17 +60,25 @@ QScreen *currentScreen()
 void raiseWindow(QWidget *window)
 {
     window->raise();
-    if (qApp->applicationState() == Qt::ApplicationActive)
-        return;
 
-    window->activateWindow();
-    QApplication::setActiveWindow(window);
-    QTimer::singleShot(0, window, [window]{
-        const auto wid = window->winId();
-        const auto platformWindow = platformNativeInterface()->getWindow(wid);
-        if (platformWindow)
-            platformWindow->raise();
-    });
+    // When the app is already active (e.g. dialog opened from the main
+    // window), the activation calls are redundant and can interfere with
+    // focus/key dispatch on some platforms.
+    if (QApplication::applicationState() != Qt::ApplicationActive) {
+        window->activateWindow();
+        QApplication::setActiveWindow(window);
+    }
+
+    // Synchronous platform raise: the window manager must process the
+    // raise before we return, otherwise macOS (and potentially other
+    // platforms) can suppress or hide the window before the raise takes
+    // effect.  A previous version deferred this via QTimer::singleShot(0),
+    // which caused tray menus and windows triggered by global shortcuts to
+    // require multiple attempts to appear.  (See issue #3445.)
+    const auto wid = window->winId();
+    const auto platformWindow = platformNativeInterface()->getWindow(wid);
+    if (platformWindow)
+        platformWindow->raise();
 }
 
 void WindowGeometryGuard::create(QWidget *window)
@@ -92,7 +104,7 @@ bool WindowGeometryGuard::eventFilter(QObject *, QEvent *event)
             if ( !isWindowGeometryLocked() && openOnCurrentScreen() && isMousePositionSupported() ) {
                 QScreen *screen = currentScreen();
                 if (screen && window->screen() != screen) {
-                    COPYQ_LOG(QStringLiteral("Geometry: Moving to screen: %1").arg(screen->name()));
+                    qCDebug(geometryGuardCategory) << "Moving to screen:" << screen->name();
                     m_window->move(screen->availableGeometry().topLeft());
                 }
             }
@@ -102,13 +114,15 @@ bool WindowGeometryGuard::eventFilter(QObject *, QEvent *event)
 
     case QEvent::Move:
     case QEvent::Resize:
-        if ( !isWindowGeometryLocked() && m_window->isVisible() )
+        if ( !isWindowGeometryLocked() && m_window->isVisible() && !m_window->isMinimized() )
             m_timerSaveGeometry.start();
         break;
 
     case QEvent::Hide:
-        if ( isGeometryGuardBlockedUntilHidden(m_window) )
+        if ( isGeometryGuardBlockedUntilHidden(m_window) ) {
             setGeometryGuardBlockedUntilHidden(m_window, false);
+            restoreWindowGeometry();
+        }
         break;
 
     default:
@@ -183,11 +197,11 @@ void WindowGeometryGuard::onScreenChanged()
     if (!screen)
         return;
 
-    COPYQ_LOG(QStringLiteral("Geometry: Screen changed: %1").arg(screen->name()));
+    qCDebug(geometryGuardCategory) << "Screen changed:" << screen->name();
 
     const bool isMousePositionSupported = ::isMousePositionSupported();
     if ( window && isMousePositionSupported && screen != currentScreen() ) {
-        COPYQ_LOG(QStringLiteral("Geometry: Avoiding geometry-restore on incorrect screen"));
+        qCDebug(geometryGuardCategory) << "Avoiding geometry-restore on incorrect screen";
         return;
     }
 

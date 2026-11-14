@@ -5,7 +5,6 @@
 #include "common/client_server.h"
 #include "common/contenttype.h"
 #include "common/mimetypes.h"
-#include "common/sanitize_text_document.h"
 #include "common/textdata.h"
 #include "common/timer.h"
 #include "gui/clipboardbrowser.h"
@@ -27,6 +26,14 @@ namespace {
 
 const char propertySelectedItem[] = "CopyQ_selected";
 constexpr int defaultMaxItemHeight = 2048 * 8;
+
+void updatePalette(QWidget *widget)
+{
+    const QPalette palette = widget->palette();
+    for ( auto *child : widget->findChildren<QWidget*>() ) {
+        child->setPalette(palette);
+    }
+}
 
 } // namespace
 
@@ -118,6 +125,13 @@ void ItemDelegate::rowsMoved(const QModelIndex &, int sourceStart, int sourceEnd
 
 QWidget *ItemDelegate::createPreview(const QVariantMap &data, QWidget *parent)
 {
+    auto widget = createPreviewNoEmit(data, parent);
+    emit itemWidgetCreated(PersistentDisplayItem(this, data, widget));
+    return widget;
+}
+
+QWidget *ItemDelegate::createPreviewNoEmit(const QVariantMap &data, QWidget *parent)
+{
     const bool antialiasing = m_sharedData->theme.isAntialiasingEnabled();
     ItemWidget *itemWidget =
             m_sharedData->itemFactory->createItem(data, parent, antialiasing, false, true);
@@ -130,8 +144,6 @@ QWidget *ItemDelegate::createPreview(const QVariantMap &data, QWidget *parent)
     highlightMatches(itemWidget);
 
     parent->setFocusProxy( itemWidget->widget() );
-
-    emit itemWidgetCreated(PersistentDisplayItem(this, data, itemWidget->widget()));
 
     return itemWidget->widget();
 }
@@ -153,7 +165,7 @@ void ItemDelegate::createItemWidget(const QModelIndex &index)
     const int row = index.row();
     ItemWidget *w = m_items[row].get();
     if (w == nullptr) {
-        auto data = m_view->itemData(index);
+        QVariantMap data = index.data(contentType::data).toMap();
         data.insert(mimeCurrentTab, m_view->tabName());
         w = updateWidget(index, data);
         emit itemWidgetCreated(PersistentDisplayItem(this, data, w->widget()));
@@ -173,7 +185,7 @@ void ItemDelegate::updateWidget(QObject *widget, const QVariantMap &data)
         if (!scrollArea)
             return;
 
-        auto newPreview = createPreview(data, scrollArea);
+        auto newPreview = createPreviewNoEmit(data, scrollArea);
         scrollArea->setWidget(newPreview);
         newPreview->show();
         return;
@@ -193,6 +205,7 @@ void ItemDelegate::setItemSizes(int maxWidth, int idealWidth)
     const int margin = 2 * margins.width() + 2 * m_view->spacing();
     m_maxWidth = maxWidth - margin;
     m_idealWidth = idealWidth - margin;
+    m_fontHeight = m_view->viewport()->fontMetrics().height();
 
     for (int row = 0; static_cast<size_t>(row) < m_items.size(); ++row) {
         if (m_items[row])
@@ -221,42 +234,55 @@ void ItemDelegate::updateItemSize(const QModelIndex &index, QSize itemWidgetSize
         rowNumberSize.height()
     );
 
-    const QSize newSize = QSize(width, height);
-    if (m_items[row].size == newSize)
+    auto newSize = QSize(width, height);
+    const QSize oldSize = m_items[row].size;
+    if (oldSize == newSize)
         return;
 
+    // Avoid small height changes to make the item positions more stable
+    if (oldSize.isValid()) {
+        const int deltaH = newSize.height() - oldSize.height();
+        if ((-m_fontHeight < deltaH && deltaH < 0) || (0 < deltaH && deltaH < m_fontHeight / 3))
+            newSize.setHeight(oldSize.height());
+    }
     m_items[row].size = newSize;
     emit sizeHintChanged(index);
 }
 
 ItemEditorWidget *ItemDelegate::createCustomEditor(
-        QWidget *parent, const QModelIndex &index, bool editNotes)
+        QWidget *parent, const QModelIndex &index, const QString &format)
 {
-    bool hasHtml = false;
-    QString text;
-    if (editNotes) {
-        text = index.data(contentType::notes).toString();
-    } else {
+    // If format is empty, try to find most suitable text format to edit.
+    if ( format.isEmpty() ) {
         const QVariantMap data = m_sharedData->itemFactory->data(index);
-        text = getTextData(data, mimeHtml);
-        if (text.isEmpty()) {
-            text = getTextData(data);
-            if (text.isNull())
-                return nullptr;
-        } else {
-            hasHtml = true;
+        for (const auto &format2 : {mimeTextUtf8, mimeText, mimeUriList, mimeHtml}) {
+            if ( data.contains(format2) )
+                return createCustomEditor(parent, index, format2);
         }
+        return nullptr;
     }
 
+    // Refuse editing non-text data
+    if ( format != mimeItemNotes && !format.startsWith(QLatin1String("text/")) )
+        return nullptr;
+
+    const QVariantMap data = m_sharedData->itemFactory->data(index);
+    if ( format != mimeItemNotes && !data.contains(format) )
+        return nullptr;
+
     auto editorParent = new QWidget(parent);
-    auto editor = new ItemEditorWidget(index, editNotes, editorParent);
+    auto editor = new ItemEditorWidget(index, format, editorParent);
 
     connect(editor, &QObject::destroyed, editorParent, &QObject::deleteLater);
 
-    if (hasHtml) {
-        editor->setHtml(text);
-        sanitizeTextDocument(editor->document());
+    // Prefer editing rich text
+    if ( (format == mimeText || format == mimeTextUtf8 || format == mimeHtml)
+         && data.contains(mimeHtml) )
+    {
+        const QString html = getTextData(data, mimeHtml);
+        editor->setHtml(html);
     } else {
+        const QString text = getTextData(data, format);
         editor->setPlainText(text);
     }
 
@@ -317,9 +343,10 @@ void ItemDelegate::highlightMatches(ItemWidget *itemWidget) const
 
 void ItemDelegate::updateAllRows()
 {
+    const auto margins = m_sharedData->theme.margins();
     const int s = m_view->spacing();
     const int space = 2 * s;
-    int y = -m_view->verticalOffset() + s;
+    int y = -m_view->verticalOffset() + s + margins.height();
 
     for (int row = 0; static_cast<size_t>(row) < m_items.size(); ++row) {
         const bool hide = m_view->isRowHidden(row);
@@ -426,6 +453,11 @@ void ItemDelegate::setIndexWidget(const QModelIndex &index, ItemWidget *w)
             updateItemWidgetSize(row);
         }
 
+        // Re-apply theme palette after sizing. updateItemWidgetSize()
+        // may call setDocument() on QTextEdit children, which can
+        // recreate scrollbar widgets that miss the initial palette.
+        updatePalette(ww);
+
         ww->installEventFilter(this);
         updateItemSize(index, ww->size());
         updateLater();
@@ -451,7 +483,7 @@ QPoint ItemDelegate::findPositionForWidget(const QModelIndex &index) const
         if ( ww->isHidden() )
             continue;
 
-        y = ww->geometry().top() - margins.height() + m_items[row].size.height()
+        y = ww->geometry().top() - margins.height() + m_items[row].size.height() + s
             + skipped * (defaultItemHeight + 2 * s);
         break;
     }
@@ -474,16 +506,15 @@ void ItemDelegate::setCurrentRow(int row, bool current)
 
 void ItemDelegate::setWidgetSelected(QWidget *ww, bool selected)
 {
-    if ( ww->property(propertySelectedItem).toBool() == selected )
+    const auto oldValue = ww->property(propertySelectedItem);
+    if ( oldValue.isValid() && oldValue.toBool() == selected )
         return;
 
     ww->setProperty(propertySelectedItem, selected);
-
-    QStyle *style = m_view->style();
-    ww->setStyle(style);
-    for (auto child : ww->findChildren<QWidget *>())
-        child->setStyle(style);
-    ww->update();
+    for (auto *w : ww->findChildren<QWidget*>())
+        w->setProperty(propertySelectedItem, selected);
+    ww->setStyleSheet(m_view->styleSheet());
+    updatePalette(ww);
 }
 
 int ItemDelegate::findWidgetRow(const QObject *obj) const
@@ -578,8 +609,16 @@ void ItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
 {
     const bool isSelected = option.state & QStyle::State_Selected;
 
-    // Render background (selected, alternate, ...).
+    // Draw the list widget background clipped to the item rect so that
+    // rounded corners reveal the correct background (including gradients).
+    painter->save();
+    painter->setClipRect(option.rect);
+    QStyleOption bgOpt;
+    bgOpt.initFrom(m_view);
+    bgOpt.rect = m_view->viewport()->rect();
     QStyle *style = m_view->style();
+    style->drawPrimitive(QStyle::PE_Widget, &bgOpt, painter, m_view);
+    painter->restore();
     style->drawControl(QStyle::CE_ItemViewItem, &option, painter, m_view);
 
     // Colorize item.
@@ -599,7 +638,7 @@ void ItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
     // Render number.
     if ( m_sharedData->theme.showRowNumber() ) {
         const int rowNumber = index.row() + static_cast<int>(m_sharedData->rowIndexFromOne);
-        const QString num = QString::number(rowNumber);
+        const auto num = QString::number(rowNumber);
         QPalette::ColorRole role = isSelected ? QPalette::HighlightedText : QPalette::Text;
         painter->save();
         painter->setFont( m_sharedData->theme.rowNumberFont() );

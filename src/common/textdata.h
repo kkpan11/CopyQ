@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef TEXTDATA_H
-#define TEXTDATA_H
+#pragma once
 
-#include <QVariantMap>
+
+#include <QtContainerFwd>
 
 class QByteArray;
 class QString;
@@ -37,5 +37,3 @@ QVariantMap createDataMap(const QString &format, const QString &value);
 
 /// Returns text without accents/diacritics.
 QString accentsRemoved(const QString &text);
-
-#endif // TEXTDATA_H

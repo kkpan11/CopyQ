@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef PLATFORMWINDOW_H
-#define PLATFORMWINDOW_H
+#pragma once
+
 
 #include <QByteArray>
 
 class QString;
+class QWidget;
 
 /**
  * Window storage class for platform. Used to raise/focus window and paste to window.
@@ -30,15 +31,18 @@ public:
     /**
      * Paste clipboard content to window.
      */
-    virtual void pasteClipboard() = 0;
+    virtual bool pasteFromClipboard() = 0;
 
     /**
      * Copy to clipboard from window.
      */
-    virtual void copy() = 0;
+    virtual bool copyToClipboard() = 0;
+
+    /**
+     * Return true if this native window belongs to the given widget.
+     */
+    virtual bool matchesWidget(const QWidget *widget) const = 0;
 
     PlatformWindow(const PlatformWindow &) = delete;
     PlatformWindow &operator=(const PlatformWindow &) = delete;
 };
-
-#endif // PLATFORMWINDOW_H
